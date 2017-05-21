@@ -63,14 +63,14 @@ def process_img(img):
     processed_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     processed_img = cv2.Canny(processed_img, threshold1=200, threshold2=300)
     processed_img = cv2.GaussianBlur(processed_img, (3,3), 0 )
-    vertices = np.array([[30, 265], [30, 145], [195, 145], [195, 265]])
-    #processed_img = roi(processed_img, np.int32([vertices]))
-    verticesP = np.array([[30, 300], [30, 180], [197, 180], [197, 300]])
+    vertices = np.array([[30, 250], [30, 70], [195, 70], [195, 250]])
+    processed_img = roi(processed_img, np.int32([vertices]))
+    verticesP = np.array([[30, 250], [30, 230], [197, 230], [197, 250]])
     platform = roi(processed_img, np.int32([verticesP]))
     #                       edges
-    #lines = cv2.HoughLinesP(platform, 1, np.pi/180, 180,np.array([]), 10, 2)
+    #lines = cv2.HoughLinesP(platform, 1, np.pi/180, 180,np.array([]), 3, 2)
     #draw_lines(processed_img,lines)
-    #draw_lines(platform,lines)
+    #draw_lines(original_image,lines)
 
     #Platform lines
     #imgray = cv2.cvtColor(platform,cv2.COLOR_BGR2GRAY)
