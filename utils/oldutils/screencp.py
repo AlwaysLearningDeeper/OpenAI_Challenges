@@ -2,6 +2,7 @@ import numpy as np
 from utils.grabscreen import grab_screen
 from utils.directkeys import PressKey,ReleaseKey,A,W,S,D
 from matplotlib import pyplot as plt
+from utils.grabkeys import key_check
 import cv2
 import time
 import sys
