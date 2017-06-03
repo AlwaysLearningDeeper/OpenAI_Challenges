@@ -1,4 +1,4 @@
-# Done by Frannecklp
+# Credits to Frannecklp
 
 import cv2
 import numpy as np
