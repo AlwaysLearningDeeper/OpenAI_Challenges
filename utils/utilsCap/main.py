@@ -1,8 +1,7 @@
 import numpy as np
 from Project.utils.grabscreen import grab_screen
-from Project.utils.directkeys import PressKey,ReleaseKey,A,W,S,D
 from matplotlib import pyplot as plt
-from Project.utils.grabkeys import key_check
+from Project.utils.utilsCap.grabkeys import key_check
 import cv2
 import time
 import sys
