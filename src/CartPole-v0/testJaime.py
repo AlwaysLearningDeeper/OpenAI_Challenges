@@ -11,16 +11,11 @@ import tensorflow as tf
 LR = 1e-3
 env = gym.make("CartPole-v0")
 env.reset()
-goal_steps = 5000
+goal_steps = 500
 score_requirement = 70
-initial_games = 1000000
+initial_games = 300000
 
-n_nodes_hl1 = 500
-n_nodes_hl2 = 500
-n_nodes_hl3 = 500
 
-n_classes=10
-batch_size=100
 
 #Height x width
 x=tf.placeholder('float',[None,784])
@@ -43,7 +38,10 @@ def create_population():
     training_data = []
     scores = []
     accepted_scores= []
-    for _ in range(initial_games):
+    for iteration in range(initial_games):
+        if (iteration%100 == 0):
+            print('Initial game number ',iteration)
+
         score = 0
         game_memory = []
         prev_observation = []
