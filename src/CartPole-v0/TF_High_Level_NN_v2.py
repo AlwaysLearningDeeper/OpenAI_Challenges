@@ -8,10 +8,11 @@ from collections import Counter
 import os
 
 
-tf.logging.set_verbosity(tf.logging.FATAL)
+#tf.logging.set_verbosity(tf.logging.FATAL)
 
 LR = 1e-3
-env = gym.make("CartPole-v0")
+DROPOUT_RATE = 0.3
+env = gym.make("CartPole-v1")
 env.reset()
 goal_steps = 500
 score_requirement = 50
@@ -85,34 +86,46 @@ def initial_population():
 
 
 
-def modelv2():
-    x = tf.placeholder(tf.float32, shape=(None,4), name='x')
+def modelv2(x):
     network = tf.contrib.layers.relu(x, 128)
+    network = tf.layers.dropout(network,rate=DROPOUT_RATE,training=dropout)
     network = tf.contrib.layers.relu(network, 256)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 512)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 256)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 128)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     output = tf.contrib.layers.fully_connected(network, 2,activation_fn = tf.nn.softmax)
 
     return output
 
-y=tf.placeholder(tf.float32,shape=(None,2), name='y')
-training_data = initial_population()
+x = tf.placeholder(tf.float32, shape=(None,4), name='x')
+y = tf.placeholder(tf.float32, shape=(None,2), name='y')
+dropout = tf.placeholder(tf.bool,shape=None,name ='dropout')
+
+
+#training_data = initial_population()
+#np.save("jairsanTrainingData", training_data)
+training_data = np.load("jairsanTrainingData.npy")
+
 Xtrain = np.array([i[0] for i in training_data]).reshape(-1, len(training_data[0][0]))
 ytrain = [i[1] for i in training_data]
 
-nn = modelv2()
+nn = modelv2(x)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=nn, labels=y))
 optimizer = tf.train.AdamOptimizer().minimize(cost)
 
 
 with tf.Session() as sess:
-    sess.run(tf.initialize_all_variables())
+    tf.set_random_seed(7)
+    sess.run(tf.global_variables_initializer())
 
     # Train
-    for epoch in range(5):
+    for epoch in range(15):
         epoch_loss = 0
-        ca, c = sess.run([optimizer, cost], feed_dict={'x:0':Xtrain,'y:0':ytrain})
+        ca, c = sess.run([optimizer, cost], feed_dict={x:Xtrain,y:ytrain,dropout:True})
         epoch_loss += c
         print('Epoch', epoch, 'loss', epoch_loss)
 
@@ -120,28 +133,22 @@ with tf.Session() as sess:
 
     scores = []
     choices = []
-    for each_game in range(10):
+    for each_game in range(100):
         score = 0
         game_memory = []
         prev_obs = []
         env.reset()
         for _ in range(goal_steps):
+
             #env.render()
 
 
             if len(prev_obs) == 0:
-                action = random.randrange(0, 2)
+                action = 0
             else:
-                action = np.argmax(sess.run([nn], feed_dict={'x:0':prev_obs.reshape(-1, len(prev_obs))})[0])
-                print(action)
-
-
-
-
-
+                action = np.argmax(sess.run([nn], feed_dict={x:prev_obs.reshape(-1, len(prev_obs)),dropout:False}))
 
             choices.append(action)
-
 
             new_observation, reward, done, info = env.step(action)
 
@@ -149,7 +156,8 @@ with tf.Session() as sess:
             game_memory.append([new_observation, action])
             score += reward
 
-            if done: break
+            if done:
+                break
 
 
         scores.append(score)
