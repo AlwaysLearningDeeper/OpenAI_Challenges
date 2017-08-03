@@ -102,4 +102,8 @@ ENV/
 # mypy
 .mypy_cache/
 .idea/
+
+# tf
+saved.npy
 src/CartPole-v0/log/
+
