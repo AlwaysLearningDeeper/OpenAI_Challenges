@@ -9,220 +9,202 @@ from collections import Counter
 import tensorflow as tf
 import sys
 
+tf.logging.set_verbosity(tf.logging.FATAL)
+
 LR = 1e-3
-env = gym.make("CartPole-v0")
+env = gym.make("CartPole-v1")
 env.reset()
 goal_steps = 500
-score_requirement = 70
-initial_games = 30000
+score_requirement = 60
+initial_games = 10000
 
-n_nodes_hl1 = 500
-n_nodes_hl2 = 500
-n_nodes_hl3 = 500
+n_nodes_hl1 = 128
+n_nodes_hl2 = 256
+n_nodes_hl3 = 512
+n_nodes_hl4 = 256
+n_nodes_hl5 = 128
 n_classes = 2
-batch_size = 200
+epochN=15
 
 
-def create_randoms():
-    for episode in range(5):
-        env.reset()
-        for t in range(goal_steps):
-            #env.render()
-            action = env.action_space.sample()
-            observation, reward, done, info = env.step(action)
-            if done:
-                break
-
-
-
-def create_population():
+def initial_population():
+    """
+    Extracts good runs from random games. Code from sentdex
+    :return training_data:
+    """
+    # [OBS, MOVES]
     training_data = []
+    # all scores:
     scores = []
-    accepted_scores= []
-    for iteration in range(initial_games):
-        if (iteration%100 == 0):
-            print('Initial game number ',iteration)
-
+    # just the scores that met our threshold:
+    accepted_scores = []
+    # iterate through however many games we want:
+    for _ in range(initial_games):
         score = 0
+        # moves specifically from this environment:
         game_memory = []
+        # previous observation that we saw
         prev_observation = []
+        # for each frame in 200
         for _ in range(goal_steps):
-            action = random.randrange(0,2)
+            # choose random action (0 or 1)
+            action = random.randrange(0, 2)
+            # do it!
             observation, reward, done, info = env.step(action)
 
+            # notice that the observation is returned FROM the action
+            # so we'll store the previous observation here, pairing
+            # the prev observation to the action we'll take.
             if len(prev_observation) > 0:
-                game_memory.append([prev_observation,action])
-
+                game_memory.append([prev_observation, action])
             prev_observation = observation
             score += reward
-            if done:
-                break
-        if score > score_requirement:
+            if done: break
+
+        # IF our score is higher than our threshold, we'd like to save
+        # every move we made
+        # NOTE the reinforcement methodology here.
+        # all we're doing is reinforcing the score, we're not trying
+        # to influence the machine in any way as to HOW that score is
+        # reached.
+        if score >= score_requirement:
             accepted_scores.append(score)
             for data in game_memory:
+                # convert to one-hot (this is the output layer for our neural network)
                 if data[1] == 1:
-                    output =[0,1]
+                    output = [0, 1]
                 elif data[1] == 0:
-                    output = [1,0]
+                    output = [1, 0]
 
-                training_data.append([data[0],output])
+                # saving our training data
+                training_data.append([data[0], output])
+
+        # reset env to play again
         env.reset()
+        # save overall scores
         scores.append(score)
 
-    training_data_save = np.array(training_data)
-    np.save('saved.npy',training_data_save)
 
-    print('Average accepted score:',mean(accepted_scores))
-    print('Median accepted score:',median(accepted_scores))
+    # some stats here, to further illustrate the neural network magic!
+    print('Average accepted score:', mean(accepted_scores))
+    print('Median score for accepted scores:', median(accepted_scores))
     print(Counter(accepted_scores))
 
     return training_data
 
 
+def neural_network_modelv2():
 
-def neural_network_modelv1(input_size):
+    x = tf.placeholder(tf.float32, shape=(None, 4), name='x')
 
-    network = input_data(shape=[None, input_size, 1], name='input')
+    # # #(input_data * weights) +biases
+    #
+    # hidden_1_layer = {'weights': tf.Variable(tf.random_normal([4, n_nodes_hl1])),
+    #                   'biases': tf.Variable(tf.random_normal([n_nodes_hl1]))}
+    #
+    # hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])),
+    #                   'biases': tf.Variable(tf.random_normal([n_nodes_hl2]))}
+    #
+    # hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])),
+    #                   'biases': tf.Variable(tf.random_normal([n_nodes_hl3]))}
+    #
+    # hidden_4_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl3, n_nodes_hl4])),
+    #                   'biases': tf.Variable(tf.random_normal([n_nodes_hl4]))}
+    #
+    # hidden_5_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl4, n_nodes_hl5])),
+    #                   'biases': tf.Variable(tf.random_normal([n_nodes_hl5]))}
+    #
+    # output_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl5, n_classes])),
+    #                 'biases': tf.Variable(tf.random_normal([n_classes])), }
+    #
+    # l1 = tf.add(tf.matmul(x, hidden_1_layer['weights']), hidden_1_layer['biases'])
+    # l1 = tf.nn.relu(l1)
+    # #l1 = tf.nn.dropout(l1,0.2)
+    #
+    # l2 = tf.add(tf.matmul(l1, hidden_2_layer['weights']), hidden_2_layer['biases'])
+    # l2 = tf.nn.relu(l2)
+    # #l2 = tf.nn.dropout(l2,0.2)
+    #
+    # l3 = tf.add(tf.matmul(l2, hidden_3_layer['weights']), hidden_3_layer['biases'])
+    # l3 = tf.nn.relu(l3)
+    # #l3 = tf.nn.dropout(l3,0.2)
+    #
+    # l4 = tf.add(tf.matmul(l3, hidden_4_layer['weights']), hidden_4_layer['biases'])
+    # l4 = tf.nn.relu(l4)
+    # #l4 = tf.nn.dropout(l4,0.2)
+    #
+    # l5 = tf.add(tf.matmul(l4, hidden_5_layer['weights']), hidden_5_layer['biases'])
+    # l5 = tf.nn.relu(l5)
+    # #l5 = tf.nn.dropout(l5,0.2)
+    #
+    # output_layer = tf.matmul(l5, output_layer['weights']) + output_layer['biases']
+    # output_layer = tf.nn.softmax(output_layer)
+    #
+    # return output_layer
 
-    network = fully_connected(network, 128, activation='relu')
-    network = dropout(network, 0.8)
+    network = tf.contrib.layers.relu(x, 128)
+    network = tf.contrib.layers.relu(network, 256)
+    network = tf.contrib.layers.relu(network, 512)
+    network = tf.contrib.layers.relu(network, 256)
+    network = tf.contrib.layers.relu(network, 128)
+    output = tf.contrib.layers.fully_connected(network, 2, activation_fn=tf.nn.softmax)
 
-    network = fully_connected(network, 256, activation='relu')
-    network = dropout(network, 0.8)
-
-    network = fully_connected(network, 512, activation='relu')
-    network = dropout(network, 0.8)
-
-    network = fully_connected(network, 256, activation='relu')
-    network = dropout(network, 0.8)
-
-    network = fully_connected(network, 128, activation='relu')
-    network = dropout(network, 0.8)
-
-    network = fully_connected(network, 2, activation='softmax')
-    network = regression(network, optimizer='adam', learning_rate=LR, loss='categorical_crossentropy', name='targets')
-    model = tflearn.DNN(network, tensorboard_dir='log')
-
-    return model
-
-def neural_network_modelv2(data):
-    # (input_data * weights) +biases
-    hidden_1_layer = {'weights': tf.Variable(tf.random_normal([4, n_nodes_hl1])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl1]))}
-
-    hidden_2_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl1, n_nodes_hl2])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl2]))}
-
-    hidden_3_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl2, n_nodes_hl3])),
-                      'biases': tf.Variable(tf.random_normal([n_nodes_hl3]))}
-
-    output_layer = {'weights': tf.Variable(tf.random_normal([n_nodes_hl3, n_classes])),
-                    'biases': tf.Variable(tf.random_normal([n_classes])), }
-    data = tf.cast(data, tf.float32)
-    l1 = tf.add(tf.matmul(data, hidden_1_layer['weights']), hidden_1_layer['biases'])
-    l1 = tf.nn.relu(l1)
-
-    l2 = tf.add(tf.matmul(l1, hidden_2_layer['weights']), hidden_2_layer['biases'])
-    l2 = tf.nn.relu(l2)
-
-    l3 = tf.add(tf.matmul(l2, hidden_3_layer['weights']), hidden_3_layer['biases'])
-    l3 = tf.nn.relu(l3)
-
-    output_layer = tf.matmul(l3, output_layer['weights']) + output_layer['biases']
-
-    return output_layer
+    return output
 
 
-def train_model(training_data, model=False):
-    X = np.array([i[0] for i in training_data]).reshape(-1, len(training_data[0][0]), 1)
-    y = [i[1] for i in training_data]
 
-    if not model:
-        model = neural_network_modelv1(input_size=len(X[0]))
-
-    model.fit({'input': X}, {'targets': y}, n_epoch=5, snapshot_step=500, show_metric=True, run_id='openai_learning')
-    return model
-
-x=tf.placeholder('float')
-y=tf.placeholder('float')
-
-def train_modelv2(trainingdata, model=False):
-    #Divide data for training and test
-    maxL = len(trainingdata)
-    corner = int(maxL*0.8)
-    print(corner)
-    test_data,training_data =np.split(trainingdata,[corner])
-
-    print(test_data)
+def playthegame(training_data):
+    y=tf.placeholder(tf.float32,shape=(None,2), name='y')
     trainingX = np.array([i[0] for i in training_data]).reshape(-1, len(training_data[0][0]))
     trainingY = [i[1] for i in training_data]
 
-    testX = np.array([i[0] for i in test_data]).reshape(-1, len(test_data[0][0]))
-    testY = [i[1] for i in test_data]
-
-    prediction = neural_network_modelv2(trainingX)
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=y))
+    nn = neural_network_modelv2()
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=nn, labels=y))
     optimizer = tf.train.AdamOptimizer().minimize(cost)
 
-    hm_epochs = 1000
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-
+        tf.set_random_seed(7)
         # Train
-        for epoch in range(hm_epochs):
+        for epoch in range(epochN):
             epoch_loss = 0
-            ca, c = sess.run([optimizer, cost], feed_dict={x: trainingX, y: trainingY})
+            ca, c = sess.run([optimizer, cost], feed_dict={'x:0': trainingX, 'y:0': trainingY})
             epoch_loss += c
-
-            print('Epoch', epoch, 'completed out of', hm_epochs, 'loss', epoch_loss)
-
-        # Test
-        print(ca)
-        print(tf.argmax(prediction, 1))
-        print(tf.argmax(y, 1))
-        correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-        print('Accuracy', accuracy.eval({x: testX, y: testY}))
+            print('Epoch', epoch, 'loss', epoch_loss)
 
 
 
+        scores = []
+        choices = []
+        for each_game in range(100):
+            score = 0
+            game_memory = []
+            prev_obs = []
+            env.reset()
+            for _ in range(goal_steps):
+                #env.render()
 
 
+                if len(prev_obs) == 0:
+                    action = random.randrange(0, 2)
+                else:
+                    action = np.argmax(sess.run([nn], feed_dict={'x:0':prev_obs.reshape(-1, len(prev_obs))}))
+                choices.append(action)
+                new_observation, reward, done, info = env.step(action)
+
+                prev_obs = new_observation
+                game_memory.append([new_observation, action])
+                score += reward
+
+                if done: break
 
 
+            scores.append(score)
 
+        print('Average Score:', sum(scores) / len(scores))
+        print('choice 1:{}  choice 0:{}'.format(choices.count(1) / len(choices), choices.count(0) / len(choices)))
+        print(score_requirement)
 
-training_data = create_population()
-model = train_modelv2(training_data)
-
-# scores = []
-# choices = []
-# for each_game in range(10):
-#     score = 0
-#     game_memory = []
-#     prev_obs = []
-#     env.reset()
-#     for _ in range(goal_steps):
-#         #env.render()
-#
-#         if len(prev_obs) == 0:
-#             action = random.randrange(0, 2)
-#         else:
-#             action = np.argmax(model.predict(prev_obs.reshape(-1, len(prev_obs), 1))[0])
-#
-#         choices.append(action)
-#
-#         new_observation, reward, done, info = env.step(action)
-#         prev_obs = new_observation
-#         game_memory.append([new_observation, action])
-#         score += reward
-#         if done: break
-#
-#     scores.append(score)
-#
-# print('Average Score:', sum(scores) / len(scores))
-# print('choice 1:{}  choice 0:{}'.format(choices.count(1) / len(choices), choices.count(0) / len(choices)))
-# print(score_requirement)
-
-
+training_data = initial_population()
+playthegame(training_data)
