@@ -14,6 +14,7 @@ tf.logging.set_verbosity(tf.logging.FATAL)
 LR = 1e-3
 env = gym.make("CartPole-v1")
 env.reset()
+DROPOUT_RATE = 0.3
 goal_steps = 500
 score_requirement = 60
 initial_games = 10000
@@ -143,15 +144,36 @@ def neural_network_modelv2():
     # return output_layer
 
     network = tf.contrib.layers.relu(x, 128)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 256)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 512)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 1024)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 2046)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 4096)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 2046)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 5096)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 2046)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 1024)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
+    network = tf.contrib.layers.relu(network, 512)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 256)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 128)
+    network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     output = tf.contrib.layers.fully_connected(network, 2, activation_fn=tf.nn.softmax)
 
     return output
 
-
+dropout = tf.placeholder(tf.bool,shape=None,name ='dropout')
 
 def playthegame(training_data):
     y=tf.placeholder(tf.float32,shape=(None,2), name='y')
@@ -169,10 +191,10 @@ def playthegame(training_data):
         # Train
         for epoch in range(epochN):
             epoch_loss = 0
-            ca, c = sess.run([optimizer, cost], feed_dict={'x:0': trainingX, 'y:0': trainingY})
+            ca, c = sess.run([optimizer, cost], feed_dict={'x:0': trainingX, 'y:0': trainingY,dropout:True})
             epoch_loss += c
             print('Epoch', epoch, 'loss', epoch_loss)
-
+        print('Training done')
 
 
         scores = []
@@ -189,7 +211,7 @@ def playthegame(training_data):
                 if len(prev_obs) == 0:
                     action = random.randrange(0, 2)
                 else:
-                    action = np.argmax(sess.run([nn], feed_dict={'x:0':prev_obs.reshape(-1, len(prev_obs))}))
+                    action = np.argmax(sess.run([nn], feed_dict={'x:0':prev_obs.reshape(-1, len(prev_obs)),dropout:True}))
                 choices.append(action)
                 new_observation, reward, done, info = env.step(action)
 
