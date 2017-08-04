@@ -16,8 +16,8 @@ env = gym.make("CartPole-v1")
 env.reset()
 DROPOUT_RATE = 0.3
 goal_steps = 500
-score_requirement = 60
-initial_games = 10000
+score_requirement = 50
+initial_games = 100000
 
 n_nodes_hl1 = 128
 n_nodes_hl2 = 256
@@ -155,9 +155,9 @@ def neural_network_modelv2():
     network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 4096)
     network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
-    network = tf.contrib.layers.relu(network, 2046)
+    network = tf.contrib.layers.relu(network, 9192)
     network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
-    network = tf.contrib.layers.relu(network, 5096)
+    network = tf.contrib.layers.relu(network, 4096)
     network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
     network = tf.contrib.layers.relu(network, 2046)
     network = tf.layers.dropout(network, rate=DROPOUT_RATE, training=dropout)
