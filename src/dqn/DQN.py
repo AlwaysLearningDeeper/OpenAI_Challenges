@@ -33,12 +33,14 @@ def random_game():
         env.step(env.action_space.sample())
 
 
-def randomSteps(steps=1500,length=4,initial_no_ops=4):
+def randomSteps(steps=20000,length=4,initial_no_ops=4):
     t0 = time.time()
     env.reset()
     memory = Replay_Memory()
     i = 0
     frame_stack = []
+    type = np.dtype(np.float16)
+
     for _ in range(0,steps):
         if i < initial_no_ops:
             action = 1
@@ -63,10 +65,10 @@ def randomSteps(steps=1500,length=4,initial_no_ops=4):
 
             memory.store_transition(
                 (
-                copy.copy(s_t),
+                s_t.astype(type),
                 action,
                 reward,
-                copy.copy(s_t1)
+                s_t1.astype(type),
             )
             )
 
@@ -78,10 +80,12 @@ def randomSteps(steps=1500,length=4,initial_no_ops=4):
             print("Episode finished after {} timesteps".format(_ + 1))
             env.reset()
             i=0
+            frame_stack=[]
 
 
 
     t1 = time.time()
     print("This operation took:",t1-t0,)
+    #memory.dump_memory()
 randomSteps()
 

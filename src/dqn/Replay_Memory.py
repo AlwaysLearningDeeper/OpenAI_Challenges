@@ -8,3 +8,4 @@ class Replay_Memory:
     def dump_memory(self):
         for t in self.memory:
             print(t[0].shape,t[1],t[2],t[3].shape)
+            #print("Type:",t[0].dtype)
