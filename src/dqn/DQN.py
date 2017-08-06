@@ -7,7 +7,7 @@ import matplotlib
 from Replay_Memory import Replay_Memory
 
 
-
+tf.logging.set_verbosity(tf.logging.INFO)
 
 
 MEMORY_LENGTH = 4
@@ -74,7 +74,7 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
                     s_t.astype(type),
                     action,
                     reward,
-                    None,
+                    "Terminal_State",
                 )
                 )
 
@@ -142,9 +142,11 @@ def model():
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
+        output, optimizer = model()
         sess.run(tf.global_variables_initializer())
 
-        output,optimizer = model()
+
+
 
         i = 0
         frame_stack = []
@@ -158,6 +160,8 @@ def train():
                 observation, reward, done, info = env.step(action)
                 greyObservation = rgb2gray(observation)
                 downObservation = downSample(greyObservation)
+                if i > 3:
+                    frame_stack.pop(0)
                 frame_stack.append(downObservation)
                 i += 1
 
@@ -193,6 +197,7 @@ def train():
                             action,
                             reward,
                             None,
+                            True
                         )
                     )
 
@@ -203,6 +208,7 @@ def train():
                             action,
                             reward,
                             s_t_plus1.astype(type),
+                            False
                         )
                     )
 
@@ -214,14 +220,16 @@ def train():
                     t = memory.sample_transition()
                     frames.append(t[0])
                     actions.append(t[1])
-                    if t[3] == None:
+                    if t[-1]:
                         y.append(t[2])
                     else:
-                        y.append(np.max(sess.run([output],{input_tensor:t[3]})[t[1]]))
+                        print(t[3].shape)
+                        y.append(np.max(sess.run([output],{input_tensor:np.array(t[3], ndmin=4)})[t[1]]))
 
                 sess.run([optimizer],{input_tensor:np.array(frames),actions_tensor:np.array(actions),y_tensor:np.array(y)})
 
                 if done:
+                    frame_stack = []
                     game += 1
                     print("We have finished game ",game)
                     env.reset()
