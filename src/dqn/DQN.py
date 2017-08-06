@@ -1,4 +1,4 @@
-import gym,time,copy
+import gym,time,copy,re
 import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
@@ -151,6 +151,7 @@ def train():
         if checkpoint and checkpoint.model_checkpoint_path:
             saver.restore(sess, checkpoint.model_checkpoint_path)
             print("Successfully loaded:", checkpoint.model_checkpoint_path)
+            game = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
         else:
             print("Could not find old network weights")
         sess.run(tf.global_variables_initializer())

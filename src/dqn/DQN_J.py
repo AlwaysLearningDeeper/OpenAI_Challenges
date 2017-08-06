@@ -5,6 +5,7 @@ import gym
 from Replay_Memory import Replay_Memory
 import time
 import cv2
+import re,sys
 
 
 MEMORY_LENGTH = 4
@@ -154,10 +155,12 @@ def createNetwort():
 def trainDQN(nn,optimizer,sess):
     tf.set_random_seed(TF_RANDOM_SEED)
     saver = tf.train.Saver()
+    game = 0
     checkpoint = tf.train.get_checkpoint_state("saved_networks")
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
         print("Successfully loaded:", checkpoint.model_checkpoint_path)
+        game=int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
     else:
         print("Could not find old network weights")
     sess.run(tf.global_variables_initializer())
@@ -167,7 +170,7 @@ def trainDQN(nn,optimizer,sess):
     frame_stack = []
     game_scores = []
     initial_no_op = np.random.randint(4, 50)
-    game = 0
+
     for step in range(TRAINING_STEPS):
 
         if i < initial_no_op:
