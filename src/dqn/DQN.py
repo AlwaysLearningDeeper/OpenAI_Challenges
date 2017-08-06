@@ -7,7 +7,7 @@ import matplotlib
 from Replay_Memory import Replay_Memory
 
 
-
+tf.logging.set_verbosity(tf.logging.INFO)
 
 
 MEMORY_LENGTH = 4
@@ -142,9 +142,11 @@ def model():
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
+        output, optimizer = model()
         sess.run(tf.global_variables_initializer())
 
-        output,optimizer = model()
+
+
 
         i = 0
         frame_stack = []
@@ -194,7 +196,8 @@ def train():
                             s_t.astype(type),
                             action,
                             reward,
-                            "Terminal_State",
+                            None,
+                            True
                         )
                     )
 
@@ -205,6 +208,7 @@ def train():
                             action,
                             reward,
                             s_t_plus1.astype(type),
+                            False
                         )
                     )
 
@@ -216,7 +220,7 @@ def train():
                     t = memory.sample_transition()
                     frames.append(t[0])
                     actions.append(t[1])
-                    if t[3] == "Terminal_State":
+                    if t[-1]:
                         y.append(t[2])
                     else:
                         print(t[3].shape)
