@@ -146,6 +146,13 @@ def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
         output, optimizer = model()
+        saver = tf.train.Saver()
+        checkpoint = tf.train.get_checkpoint_state("saved_networks")
+        if checkpoint and checkpoint.model_checkpoint_path:
+            saver.restore(sess, checkpoint.model_checkpoint_path)
+            print("Successfully loaded:", checkpoint.model_checkpoint_path)
+        else:
+            print("Could not find old network weights")
         sess.run(tf.global_variables_initializer())
         frames = np.zeros((MINIBATCH_SIZE, 84, 84, 4), np.float32)
         score = 0
@@ -239,8 +246,12 @@ def train():
                     #print("At step ",step," we have finished game ",game," with score:",score)
                     game_scores.append(score)
                     score = 0
+                    if game % 1000 == 0:
+                        saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
+                        print('Network backup done')
                     if (game % 20) == 0:
-                        print("The average score of the last 20 games is:",np.mean(game_scores[-20:])," currently at game ",game," , step ",step)
+                        print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
+                              " currently at game ", game, " , step ", step)
                         print("The average score of all games is:", np.mean(game_scores))
 
                     env.reset()
