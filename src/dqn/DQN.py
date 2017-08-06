@@ -148,15 +148,13 @@ def train():
         output, optimizer = model()
         sess.run(tf.global_variables_initializer())
 
-
-
         score = 0
         i = 0
         frame_stack = []
         initial_no_op = np.random.randint(4,50)
         game = 0
         for step in range(TRAINING_STEPS):
-
+            t0=time.time()
             if i < initial_no_op:
                 # WE PERFORM A RANDOM NUMBER OF NO_OP ACTIONS
                 action = NO_OP_CODE
@@ -218,19 +216,23 @@ def train():
                     )
 
                 # OBTAIN MINIBATCH
-                frames = []
+                frames = np.zeros((32, 84, 84, 4), np.float32)
                 actions = []
                 y = []
+
+
                 for i in range(0, MINIBATCH_SIZE):
                     t = memory.sample_transition()
-                    frames.append(t[0])
+                    frames[i]=t[0]
                     actions.append(t[1])
                     if t[-1]:
                         y.append(t[2])
                     else:
                         y.append(np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
-                sess.run([optimizer],{input_tensor:np.array(frames),actions_tensor:np.array(actions),y_tensor:np.array(y)})
+
+                sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
+
 
                 if done:
                     frame_stack = []
@@ -241,6 +243,7 @@ def train():
                     initial_no_op = np.random.randint(4, 50)
                     i=0
 
+                print(time.time()-t0)
 
 randomSteps()
 train()
