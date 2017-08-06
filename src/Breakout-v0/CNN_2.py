@@ -11,9 +11,18 @@ n_classes=3
 keep_rate = 0.8
 keep_prob = tf.placeholder(tf.float32)
 
+
+
+def rgb2gray(rgb):
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+
+def downSample(image):
+    return cv2.resize(image, (84, 84), interpolation=cv2.INTER_LINEAR)
+
 def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1,1,1,1], padding='SAME')
-
+0
 def maxpool2d(x):
     #                        size of window         movement of window
     return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')

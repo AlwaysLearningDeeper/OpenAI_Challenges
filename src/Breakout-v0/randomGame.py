@@ -111,6 +111,7 @@ def initial_population():
                 training_data= []
                 print('Save file')
                 #sys.exit(0)
+            print('Size of training data: ' + str(sys.getsizeof(training_data)))
             if(cc>50):
                 sys.exit(0)
 
