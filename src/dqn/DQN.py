@@ -7,16 +7,24 @@ import matplotlib
 from Replay_Memory import Replay_Memory
 
 
-environment = 'Breakout-v0'
-env = gym.make(environment)
-env.reset()
+
 
 
 MEMORY_LENGTH = 4
 ACTIONS = 4
-EPISODES = 10000
+LEARNING_RATE=0.00025
+FINAL_EXPLORATION_FRAME = 100000
+RMSPROP_MOMENTUM = 0.95
+RMSPROP_EPSILON = 0.01
+REPLAY_MEMORY_SIZE = 5000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 5000
+TRAINING_STEPS = 200000
+ENVIRONMENT = 'Breakout-v0'
 type = np.dtype(np.float32)
-memory = Replay_Memory(2500)
+
+env = gym.make(ENVIRONMENT)
+env.reset()
+memory = Replay_Memory(REPLAY_MEMORY_SIZE)
 
 
 def rgb2gray(rgb):
@@ -30,7 +38,7 @@ def stack(frames):
     return np.stack(frames,2)
 
 
-def randomSteps(steps=5000,length=4,initial_no_ops=4):
+def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
     t0 = time.time()
     env.reset()
     i = 0
@@ -55,7 +63,7 @@ def randomSteps(steps=5000,length=4,initial_no_ops=4):
 
             frame_stack.pop(0)
             frame_stack.append(downObservation)
-            s_t1 = stack(frame_stack)
+            s_t_plus1 = stack(frame_stack)
 
             if done:
                 memory.store_transition(
@@ -73,7 +81,7 @@ def randomSteps(steps=5000,length=4,initial_no_ops=4):
                         s_t.astype(type),
                         action,
                         reward,
-                        s_t1.astype(type),
+                        s_t_plus1.astype(type),
                     )
                 )
 
@@ -94,23 +102,38 @@ def randomSteps(steps=5000,length=4,initial_no_ops=4):
         #plt.imshow(t[0].reshape(84, 84), cmap=matplotlib.cm.Greys_r)
         #plt.show()
 
+
+def getEpsilon(step):
+    if step > FINAL_EXPLORATION_FRAME:
+        return 0.1
+    else:
+        return 1 - step*(0.9/FINAL_EXPLORATION_FRAME)
+
 def model():
     input = tf.placeholder(tf.float32,(None,84,84,4),name="input")
+    actions = tf.placeholder(tf.int32, [None], name="actions")
+    r = tf.placeholder(tf.float32, [None], name="r")
+
     conv_1 = tf.contrib.layers.conv2d(input,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='SAME')
     conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='SAME')
     conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='SAME')
     relu_1 = tf.contrib.layers.relu(conv_3, num_outputs=512)
     output = tf.contrib.layers.fully_connected(tf.reshape(relu_1,[-1,11*11*64]),num_outputs=ACTIONS)
 
-    actions = tf.placeholder(tf.int32,[None],name="actions")
-    actions_one_hot = tf.one_hot(actions,ACTIONS,name="actions_one_hot")
-    r = tf.placeholder(tf.float32,[None],name="r")
+    #MB ERR HERE
+    actions_one_hot = tf.one_hot(actions, ACTIONS, name="actions_one_hot")
+    eliminate_other_Qs = tf.multiply(output,actions_one_hot)
+    Q_of_selected_action = tf.reduce_sum(eliminate_other_Qs)
 
 
+    loss = tf.square(tf.subtract(Q_of_selected_action,r))
 
+    cost = tf.reduce_mean(loss)
+    optimizer = tf.train.RMSPropOptimizer(momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
 
+    return output,loss
 
-    return output,actions_one_hot
+def train():
 
 
 #randomSteps()
