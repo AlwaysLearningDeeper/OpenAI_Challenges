@@ -100,16 +100,16 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
         #plt.show()
 
 
-input_tensor = tf.placeholder(tf.float32,(None,84,84,4),name="input")
-actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
-r_tensor = tf.placeholder(tf.float32, [None], name="r")
+input = tf.placeholder("float", [None, 84, 84, 4],name='input')
+actions = tf.placeholder(tf.int32, [None], name="actions")
+r = tf.placeholder(tf.float32, [None], name="r")
 def createNetwort():
 
     # input layer
-    x = tf.placeholder("float", [None, 84, 84, 4])
+
 
     # hidden layers
-    conv1 = tf.contrib.layer.conv2d(inputs=x,
+    conv1 = tf.contrib.layer.conv2d(inputs=input,
                                     num_outputs=32,
                                     kernel_size=[8,8],
                                     stride=[4,4],
@@ -152,19 +152,90 @@ def createNetwort():
 
 
 def trainDQN(nn,sess):
-    x = tf.placeholder("float", [None, ACTIONS])
-    y = tf.placeholder("float", [None])
-    env.reset()
+        tf.set_random_seed(TF_RANDOM_SEED)
+        sess.run(tf.global_variables_initializer())
 
+        output, optimizer = createNetwort()
 
+        i = 0
+        frame_stack = []
+        initial_no_op = np.random.randint(4, 50)
 
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(nn, y))
-    optimizer = tf.train.AdamOptimizer().minimize(cost)
+        saver = tf.train.Saver()
+        sess.run(tf.initialize_all_variables())
+        checkpoint = tf.train.get_checkpoint_state("saved_networks")
+        if checkpoint and checkpoint.model_checkpoint_path:
+            saver.restore(sess, checkpoint.model_checkpoint_path)
+            print
+            "Successfully loaded:", checkpoint.model_checkpoint_path
 
+        for step in range(TRAINING_STEPS):
 
-    # saving and loading networks
-    saver = tf.train.Saver()
-    sess.run(tf.initialize_all_variables())
+            if i < initial_no_op:
+                # WE PERFORM A RANDOM NUMBER OF NO_OP ACTIONS
+                action = NO_OP_CODE
+                observation, reward, done, info = env.step(action)
+                greyObservation = rgb2gray(observation)
+                downObservation = downSample(greyObservation)
+                frame_stack.append(downObservation)
+                i += 1
+
+            else:
+                # CHOOSING ACTION
+                s_t = stack(frame_stack)
+                if np.random.rand() < getEpsilon(step):
+                    # We make random action with probability epsilon
+                    action = env.action_space.sample()
+                else:
+                    # Pick action in a greedy way
+                    action = np.argmax(sess.run([output], {input_tensor: s_t}))
+
+                # STORE TRANSITION
+
+                observation, reward, done, info = env.step(action)
+
+                # Process received frame
+                greyObservation = rgb2gray(observation)
+                downObservation = downSample(greyObservation)
+
+                # Remove oldest frame
+                frame_stack.pop(0)
+                frame_stack.append(downObservation)
+
+                # Obtain state at t+1
+                s_t_plus1 = stack(frame_stack)
+
+                if done:
+                    memory.store_transition(
+                        (
+                            s_t.astype(type),
+                            action,
+                            reward,
+                            None,
+                        )
+                    )
+
+                else:
+                    memory.store_transition(
+                        (
+                            s_t.astype(type),
+                            action,
+                            reward,
+                            s_t_plus1.astype(type),
+                        )
+                    )
+
+                # OBTAIN MINIBATCH
+                t = memory.sample_transition()
+                frames_t = t[0]
+                actions = t[1]
+                rewards = t[2]
+                frames_t_plus1 = t[3]
+                for i in range(1, MINIBATCH_SIZE):
+                    s = memory.sample_transition()
+                    frames = np.concatenate((frames, s[0]))
+                    action = np.concatenate((frames, s[1]))
+
 
 def play():
     sess = tf.InteractiveSession()
