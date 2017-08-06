@@ -17,8 +17,8 @@ FINAL_EXPLORATION_FRAME = 100000
 RMSPROP_MOMENTUM = 0.95
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 5000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 5000
+REPLAY_MEMORY_SIZE = 7500
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 7500
 TRAINING_STEPS = 200000
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
@@ -116,26 +116,26 @@ def getEpsilon(step):
 
 input_tensor = tf.placeholder(tf.float32,(None,84,84,4),name="input")
 actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
-r_tensor = tf.placeholder(tf.float32, [None], name="r")
+y_tensor = tf.placeholder(tf.float32, [None], name="r")
 
 def model():
     #Placeholders could be here
-    conv_1 = tf.contrib.layers.conv2d(input,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='SAME')
+    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='SAME')
     conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='SAME')
     conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='SAME')
     relu_1 = tf.contrib.layers.relu(conv_3, num_outputs=512)
     output = tf.contrib.layers.fully_connected(tf.reshape(relu_1,[-1,11*11*64]),num_outputs=ACTIONS)
 
     #MB ERR HERE
-    actions_one_hot = tf.one_hot(actions, ACTIONS, name="actions_one_hot")
+    actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
     eliminate_other_Qs = tf.multiply(output,actions_one_hot)
     Q_of_selected_action = tf.reduce_sum(eliminate_other_Qs)
 
 
-    loss = tf.square(tf.subtract(Q_of_selected_action,r))
+    loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.RMSPropOptimizer(momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
 
     return output,optimizer
 
@@ -149,7 +149,7 @@ def train():
         i = 0
         frame_stack = []
         initial_no_op = np.random.randint(4,50)
-
+        game = 0
         for step in range(TRAINING_STEPS):
 
             if i < initial_no_op:
@@ -207,43 +207,27 @@ def train():
                     )
 
                 # OBTAIN MINIBATCH
-                t = memory.sample_transition()
-                frames_t = t[0]
-                actions = t[1]
-                rewards = t[2]
-                frames_t_plus1 = t[3]
-                for i in range(1,MINIBATCH_SIZE):
-                    s = memory.sample_transition()
-                    frames = np.concatenate((frames,s[0]))
-                    action = np.concatenate((frames,s[1]))
+                frames = []
+                actions = []
+                y = []
+                for i in range(0, MINIBATCH_SIZE):
+                    t = memory.sample_transition()
+                    frames.append(t[0])
+                    actions.append(t[1])
+                    if t[3] == None:
+                        y.append(t[2])
+                    else:
+                        y.append(np.max(sess.run([output],{input_tensor:t[3]})[t[1]]))
+
+                sess.run([optimizer],{input_tensor:np.array(frames),actions_tensor:np.array(actions),y_tensor:np.array(y)})
+
+                if done:
+                    game += 1
+                    print("We have finished game ",game)
+                    env.reset()
+                    initial_no_op = np.random.randint(4, 50)
+                    i=0
 
 
 
-
-#randomSteps()
-#output = model()
-output,x1 = model()
-print(x1.shape)
-
-
-a = tf.constant(value=[
-    [1., 2., 3. ,4.],
-    [1., 2., 3. ,4.],
-    [1., 2., 3. ,4.],
-])
-
-b = tf.constant(value=[
-    [ 1., 0., 0., 0.],
-    [ 0., 1., 0., 0.],
-    [ 0., 0., 1., 0.],
-])
-
-r = tf.multiply(a,b)
-
-t = tf.reduce_sum(r,1)
-
-ans = tf.reshape(t,[-1,1])
-
-with tf.Session() as sess:
-    print(sess.run(ans))
-
+train()
