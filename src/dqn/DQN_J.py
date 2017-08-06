@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import random
 import gym
-from Project.src.dqn.Replay_Memory import Replay_Memory
+from Replay_Memory import Replay_Memory
 import time
 import cv2
 
@@ -153,11 +153,19 @@ def createNetwort():
 
 def trainDQN(nn,optimizer,sess):
     tf.set_random_seed(TF_RANDOM_SEED)
+    saver = tf.train.Saver()
+    checkpoint = tf.train.get_checkpoint_state("saved_networks")
+    if checkpoint and checkpoint.model_checkpoint_path:
+        saver.restore(sess, checkpoint.model_checkpoint_path)
+        print("Successfully loaded:", checkpoint.model_checkpoint_path)
+    else:
+        print("Could not find old network weights")
     sess.run(tf.global_variables_initializer())
 
     score = 0
     i = 0
     frame_stack = []
+    game_scores = []
     initial_no_op = np.random.randint(4, 50)
     game = 0
     for step in range(TRAINING_STEPS):
@@ -236,15 +244,21 @@ def trainDQN(nn,optimizer,sess):
                 else:
                     y.append(np.max(sess.run([nn], {input_tensor: np.array(t[3], ndmin=4)})))
 
-            t0 = time.time()
             sess.run([optimizer], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
-            print(time.time() - t0)
 
             if done:
                 frame_stack = []
                 game += 1
                 print("We have finished game ", game, " with score:", score)
                 score = 0
+                game_scores.append(score)
+                if game % 1000 == 0:
+                    saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
+                    print('Network backup done')
+                if (game % 20) == 0:
+                    print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
+                          " currently at game ", game, " , step ", step)
+                    print("The average score of all games is:", np.mean(game_scores))
                 env.reset()
                 initial_no_op = np.random.randint(4, 50)
                 i = 0
