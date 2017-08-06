@@ -123,8 +123,9 @@ def model():
     conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='SAME')
     conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='SAME')
     conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='SAME')
-    relu_1 = tf.contrib.layers.relu(conv_3, num_outputs=512)
-    output = tf.contrib.layers.fully_connected(tf.reshape(relu_1,[-1,11*11*64]),num_outputs=ACTIONS)
+    conv_3_flat = tf.reshape(conv_3,[-1,11*11*64])
+    relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512)
+    output = tf.contrib.layers.fully_connected(relu_1,num_outputs=ACTIONS)
 
     #MB ERR HERE
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
@@ -173,7 +174,7 @@ def train():
                     action = env.action_space.sample()
                 else:
                     # Pick action in a greedy way
-                    action = np.argmax(sess.run([output],{input_tensor:s_t}))
+                    action = np.argmax(sess.run([output],{input_tensor:np.array(s_t, ndmin=4)}))
 
                 # STORE TRANSITION
 
@@ -223,8 +224,7 @@ def train():
                     if t[-1]:
                         y.append(t[2])
                     else:
-                        print(t[3].shape)
-                        y.append(np.max(sess.run([output],{input_tensor:np.array(t[3], ndmin=4)})[t[1]]))
+                        y.append(np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
                 sess.run([optimizer],{input_tensor:np.array(frames),actions_tensor:np.array(actions),y_tensor:np.array(y)})
 
@@ -237,5 +237,5 @@ def train():
                     i=0
 
 
-
+randomSteps()
 train()
