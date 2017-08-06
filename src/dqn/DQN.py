@@ -14,12 +14,13 @@ MEMORY_LENGTH = 4
 ACTIONS = 4
 LEARNING_RATE = 0.00025
 FINAL_EXPLORATION_FRAME = 100000
+TRAINING_STEPS = 200000
+DISCOUNT_RATE = 0.99
 RMSPROP_MOMENTUM = 0.95
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 7500
 RANDOM_STEPS_REPLAY_MEMORY_INIT = 7500
-TRAINING_STEPS = 200000
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -46,6 +47,7 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
     env.reset()
     i = 0
     frame_stack = []
+
 
     for _ in range(0,steps):
         if i < initial_no_ops:
@@ -115,7 +117,6 @@ def getEpsilon(step):
         return 1 - step*(0.9/FINAL_EXPLORATION_FRAME)
 
 
-
 input_tensor = tf.placeholder(tf.float32,(None,84,84,4),name="input")
 actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
 y_tensor = tf.placeholder(tf.float32, [None], name="r")
@@ -129,7 +130,6 @@ def model():
     relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512)
     output = tf.contrib.layers.fully_connected(relu_1,num_outputs=ACTIONS)
 
-    #MB ERR HERE
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
     eliminate_other_Qs = tf.multiply(output,actions_one_hot)
     Q_of_selected_action = tf.reduce_sum(eliminate_other_Qs)
@@ -147,14 +147,14 @@ def train():
         tf.set_random_seed(TF_RANDOM_SEED)
         output, optimizer = model()
         sess.run(tf.global_variables_initializer())
-
+        frames = np.zeros((MINIBATCH_SIZE, 84, 84, 4), np.float32)
         score = 0
+        game_scores = []
         i = 0
         frame_stack = []
         initial_no_op = np.random.randint(4,50)
-        game = 0
+        game = 1
         for step in range(TRAINING_STEPS):
-            t0=time.time()
             if i < initial_no_op:
                 # WE PERFORM A RANDOM NUMBER OF NO_OP ACTIONS
                 action = NO_OP_CODE
@@ -216,7 +216,6 @@ def train():
                     )
 
                 # OBTAIN MINIBATCH
-                frames = np.zeros((32, 84, 84, 4), np.float32)
                 actions = []
                 y = []
 
@@ -228,7 +227,7 @@ def train():
                     if t[-1]:
                         y.append(t[2])
                     else:
-                        y.append(np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
+                        y.append(DISCOUNT_RATE * np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
 
                 sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
@@ -237,13 +236,18 @@ def train():
                 if done:
                     frame_stack = []
                     game += 1
-                    print("We have finished game ",game," with score:",score)
+                    #print("At step ",step," we have finished game ",game," with score:",score)
+                    game_scores.append(score)
                     score = 0
+                    if (game % 20) == 0:
+                        print("The average score of the last 20 games is:",np.mean(game_scores[-20:])," currently at game ",game," , step ",step)
+                        print("The average score of all games is:", np.mean(game_scores))
+
                     env.reset()
                     initial_no_op = np.random.randint(4, 50)
                     i=0
 
-                print(time.time()-t0)
+
 
 randomSteps()
 train()
