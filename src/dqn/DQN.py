@@ -74,7 +74,8 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
                     s_t.astype(type),
                     action,
                     reward,
-                    "Terminal_State",
+                    None,
+                    True
                 )
                 )
 
@@ -85,11 +86,12 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
                         action,
                         reward,
                         s_t_plus1.astype(type),
+                        False
                     )
                 )
 
         if done:
-            print("Episode finished after {} timesteps".format(_ + 1))
+            #print("Episode finished after {} timesteps".format(_ + 1))
             env.reset()
             i=0
             frame_stack=[]
@@ -148,7 +150,7 @@ def train():
 
 
 
-
+        score = 0
         i = 0
         frame_stack = []
         initial_no_op = np.random.randint(4,50)
@@ -179,6 +181,8 @@ def train():
                 # STORE TRANSITION
 
                 observation, reward, done, info = env.step(action)
+
+                score += reward
 
                 #Process received frame
                 greyObservation = rgb2gray(observation)
@@ -231,7 +235,8 @@ def train():
                 if done:
                     frame_stack = []
                     game += 1
-                    print("We have finished game ",game)
+                    print("We have finished game ",game," with score:",score)
+                    score = 0
                     env.reset()
                     initial_no_op = np.random.randint(4, 50)
                     i=0
