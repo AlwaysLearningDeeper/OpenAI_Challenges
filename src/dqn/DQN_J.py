@@ -21,7 +21,9 @@ ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 17
 
+type = np.dtype(np.float32)
 env=gym.make(ENVIRONMENT)
+env.reset()
 memory = Replay_Memory(REPLAY_MEMORY_SIZE)
 
 
@@ -99,16 +101,16 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
         #plt.show()
 
 
-input = tf.placeholder("float", [None, 84, 84, 4],name='input')
-actions = tf.placeholder(tf.int32, [None], name="actions")
-y = tf.placeholder(tf.float32, [None], name="y")
+input_tensor = tf.placeholder(tf.float32,(None,84,84,4),name="input")
+actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
+y_tensor = tf.placeholder(tf.float32, [None], name="r")
 def createNetwort():
 
     # input layer
 
 
     # hidden layers
-    conv1 = tf.contrib.layers.conv2d(inputs=input,
+    conv1 = tf.contrib.layers.conv2d(inputs=input_tensor,
                                     num_outputs=32,
                                     kernel_size=[8,8],
                                     stride=[4,4],
@@ -125,47 +127,39 @@ def createNetwort():
     # pool2 = tf.contrib.layers.max_pooling2d(inputs=conv2,
     #                                 pool_size=2,
     #                                 strides=2)
-    conv2 = tf.contrib.layers.conv2d(inputs=conv2,
+    conv3 = tf.contrib.layers.conv2d(inputs=conv2,
                                     num_outputs=64,
                                     kernel_size=[3,3],
                                     stride=[1,1],
                                     padding='same')
 
     #conv2_flat = tf.reshape(pool2, [-1, 256])
-    relu_1 = tf.contrib.layers.relu(conv2, num_outputs=512)
-    output = tf.contrib.layers.fully_connected(tf.reshape(relu_1,[-1,11*11*64]),num_outputs=ACTIONS)
+    conv3_flat = tf.reshape(conv3,[-1,11*11*64])
+    relu_1 = tf.contrib.layers.relu(conv3_flat, num_outputs=512)
+    output = tf.contrib.layers.fully_connected(relu_1,num_outputs=ACTIONS)
 
-
-    #Jairsan magic
-    actions_one_hot = tf.one_hot(actions, ACTIONS, name="actions_one_hot")
-    eliminate_other_Qs = tf.multiply(output, actions_one_hot)
+    #MB ERR HERE
+    actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
+    eliminate_other_Qs = tf.multiply(output,actions_one_hot)
     Q_of_selected_action = tf.reduce_sum(eliminate_other_Qs)
 
-    loss = tf.square(tf.subtract(Q_of_selected_action, y))
+
+    loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.RMSPropOptimizer(momentum=RMSPROP_MOMENTUM, epsilon=RMSPROP_EPSILON,learning_rate=LEARNING_RATE).minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
 
-    return output, optimizer
+    return output,optimizer
 
-def trainDQN(nn,sess):
+def trainDQN(nn,optimizer,sess):
     tf.set_random_seed(TF_RANDOM_SEED)
+    sess.run(tf.global_variables_initializer())
 
-    output, optimizer = createNetwort()
-
-    game = 0
+    score = 0
     i = 0
     frame_stack = []
     initial_no_op = np.random.randint(4, 50)
-
-    saver = tf.train.Saver()
-    sess.run(tf.initialize_all_variables())
-    checkpoint = tf.train.get_checkpoint_state("saved_networks")
-    if checkpoint and checkpoint.model_checkpoint_path:
-        saver.restore(sess, checkpoint.model_checkpoint_path)
-        print
-        "Successfully loaded:", checkpoint.model_checkpoint_path
-    env.reset()
+    game = 0
     for step in range(TRAINING_STEPS):
 
         if i < initial_no_op:
@@ -174,6 +168,8 @@ def trainDQN(nn,sess):
             observation, reward, done, info = env.step(action)
             greyObservation = rgb2gray(observation)
             downObservation = downSample(greyObservation)
+            if i > 3:
+                frame_stack.pop(0)
             frame_stack.append(downObservation)
             i += 1
 
@@ -185,11 +181,13 @@ def trainDQN(nn,sess):
                 action = env.action_space.sample()
             else:
                 # Pick action in a greedy way
-                action = np.argmax(sess.run([output], {input: s_t}))
+                action = np.argmax(sess.run([nn], {input_tensor: np.array(s_t, ndmin=4)}))
 
             # STORE TRANSITION
 
             observation, reward, done, info = env.step(action)
+
+            score += reward
 
             # Process received frame
             greyObservation = rgb2gray(observation)
@@ -209,6 +207,7 @@ def trainDQN(nn,sess):
                         action,
                         reward,
                         None,
+                        True
                     )
                 )
 
@@ -219,38 +218,43 @@ def trainDQN(nn,sess):
                         action,
                         reward,
                         s_t_plus1.astype(type),
+                        False
                     )
                 )
 
-                # OBTAIN MINIBATCH
-                frames = []
-                actions = []
-                y = []
-                for i in range(0, MINIBATCH_SIZE):
-                    t = memory.sample_transition()
-                    frames.append(t[0])
-                    actions.append(t[1])
-                    if t[3]:
-                        y.append(t[2])
-                    else:
-                        y.append(np.max(sess.run([output], {input: t[3]})[t[1]]))
+            # OBTAIN MINIBATCH
+            frames = np.zeros((32, 84, 84, 4), np.float32)
+            actions = []
+            y = []
 
-                sess.run([optimizer],
-                         {input: np.array(frames), actions: np.array(actions), y: np.array(y)})
+            for i in range(0, MINIBATCH_SIZE):
+                t = memory.sample_transition()
+                frames[i] = t[0]
+                actions.append(t[1])
+                if t[-1]:
+                    y.append(t[2])
+                else:
+                    y.append(np.max(sess.run([nn], {input_tensor: np.array(t[3], ndmin=4)})))
 
-                if done:
-                    game += 1
-                    print("We have finished game ", game)
-                    env.reset()
-                    initial_no_op = np.random.randint(4, 50)
-                    i = 0
+            t0 = time.time()
+            sess.run([optimizer], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
+            print(time.time() - t0)
+
+            if done:
+                frame_stack = []
+                game += 1
+                print("We have finished game ", game, " with score:", score)
+                score = 0
+                env.reset()
+                initial_no_op = np.random.randint(4, 50)
+                i = 0
 
 
 
 def play():
     sess = tf.InteractiveSession()
-    nn=createNetwort()
-    trainDQN(nn, sess)
+    nn,optimizer=createNetwort()
+    trainDQN(nn,optimizer,sess)
 
 
 def rgb2gray(rgb):
