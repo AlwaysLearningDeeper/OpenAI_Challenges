@@ -105,7 +105,8 @@ ENV/
 
 # tf
 saved.npy
-src/CartPole-v0/log/
+log/
+tmp/
 
 
 src/dqn/saved_networks/
