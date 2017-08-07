@@ -5,9 +5,8 @@ import os
 import random
 import time
 from gym import wrappers
-p
+
 env = gym.make('MountainCar-v0')
-env = wrappers.Monitor(env,'tmp/MountainCar-v0')
 print("action space: {0!r}".format(env.action_space))
 print("observation space: {0!r}".format(env.observation_space))
 
@@ -108,6 +107,11 @@ def run(config_file):
     # Show output of the most fit genome against training data.
     winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
     scores=[]
+
+    # Create the environment for the test and wrap it with a Monitor
+    env = gym.make('MountainCar-v0')
+    env = wrappers.Monitor(env,'tmp/MountainCar-v0')
+
     for i in range(trials):
         score=0
         observation=env.reset()
