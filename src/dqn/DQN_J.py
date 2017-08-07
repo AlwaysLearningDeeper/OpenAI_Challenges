@@ -8,16 +8,18 @@ import cv2
 import re,sys
 
 
+
 MEMORY_LENGTH = 4
 ACTIONS = 4
 LEARNING_RATE = 0.00025
-FINAL_EXPLORATION_FRAME = 100000
+FINAL_EXPLORATION_FRAME = 500000
+TRAINING_STEPS = 10000000
+DISCOUNT_RATE = 0.99
 RMSPROP_MOMENTUM = 0.95
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 5000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 5000
-TRAINING_STEPS = 200000
+REPLAY_MEMORY_SIZE = 30000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 30000
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 17
@@ -245,7 +247,7 @@ def trainDQN(nn,optimizer,sess):
                 if t[-1]:
                     y.append(t[2])
                 else:
-                    y.append(np.max(sess.run([nn], {input_tensor: np.array(t[3], ndmin=4)})))
+                    y.append(t[2] + DISCOUNT_RATE * np.max(sess.run([nn], {input_tensor: np.array(t[3], ndmin=4)})))
 
             sess.run([optimizer], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
 
