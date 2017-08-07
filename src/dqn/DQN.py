@@ -235,7 +235,7 @@ def train():
                     if t[-1]:
                         y.append(t[2])
                     else:
-                        y.append(DISCOUNT_RATE * np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
+                        y.append(t[2]+DISCOUNT_RATE * np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
 
                 sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
