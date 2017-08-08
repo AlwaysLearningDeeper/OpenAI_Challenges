@@ -150,7 +150,7 @@ def createNetwort():
     loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
 
     return output,optimizer
 
