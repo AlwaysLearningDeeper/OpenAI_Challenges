@@ -12,7 +12,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 MEMORY_LENGTH = 4
 ACTIONS = 4
-LEARNING_RATE = 0.00025
+LEARNING_RATE = 0.000025
 FINAL_EXPLORATION_FRAME = 500000
 TRAINING_STEPS = 10000000
 DISCOUNT_RATE = 0.99
@@ -138,14 +138,16 @@ def model():
     loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
 
-    return output,optimizer
+    return output,optimizer,cost
 
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
-        output, optimizer = model()
+        output, optimizer, X = model()
+
+
         saver = tf.train.Saver()
         checkpoint = tf.train.get_checkpoint_state("saved_networks")
         if checkpoint and checkpoint.model_checkpoint_path:
@@ -154,6 +156,8 @@ def train():
             game = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
         else:
             print("Could not find old network weights")
+
+
         sess.run(tf.global_variables_initializer())
         frames = np.zeros((MINIBATCH_SIZE, 84, 84, 4), np.float32)
         score = 0
@@ -239,6 +243,9 @@ def train():
 
 
                 sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
+
+                #print(y)
+                #print(sess.run([X], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)}))
 
 
                 if done:
