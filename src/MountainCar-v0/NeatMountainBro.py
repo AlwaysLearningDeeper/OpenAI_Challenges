@@ -15,12 +15,12 @@ env.spec.tags['wrapper_config.TimeLimit.max_episode_steps'] = 200
 print(env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps'))
 
 min_reward = -200
-max_reward = 200
+max_reward = -80
 goal_steps = 200
 discounted_reward = 0.9
 score_range=[]
 trials=100
-generations=200
+generations=100
 #Fitness
 def compute_fitness(net, rewards, episodes):
     reward_error=[]
@@ -54,32 +54,31 @@ def eval_genomes(genomes, config):
 
             observation, reward, done, info = env.step(action)
             score+=reward
-            episode_data.append((j,observation,action,score)) #reward instead of score?
+            episode_data.append((j,observation,action,reward)) #reward instead of score?
             if done: break
             j+=1
 
         episodes.append((score, episode_data))
-        genome.fitness = score
+        genome.fitness =score
 
     print('Simulation run time {0}'.format(time.time() - t0))
     t0=time.time()
     scores = [s for s, e in episodes]
     score_range.append((min(scores),np.mean(scores),max(scores)))
-    print(score_range)
     #Normalising
     normRewards=[]
 
     for i in range(len(episodes)):
         normRewards.append(2*(episodes[i][0]-min_reward)/(max_reward-episodes[i][0])-1.0)
 
-    comparison_episodes = [random.choice(episodes)[1] for _ in range(100)]
+    comparison_episodes = [random.choice(episodes)[1] for _ in range(10)]
     reward_errors=[]
 
     for genome,net in nets:
         reward_errors.append(compute_fitness(net,normRewards,comparison_episodes))
 
     for reward_error,(genome_id,genome) in zip(reward_errors,genomes):
-        genome.fitness -= np.mean(reward_error)
+        genome.fitness -= 50*np.mean(reward_error)
 
     print("Final fitness compute time {0}\n".format(time.time()-t0))
     #########################################################################
@@ -89,7 +88,7 @@ def run(config_file):
     config_path = os.path.join(local_dir, 'config')
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                         config_path)
+                         config_path   )
     # Create the population, which is the top-level object for a NEAT run
     population = neat.Population(config)
 
@@ -110,7 +109,7 @@ def run(config_file):
 
     # Create the environment for the test and wrap it with a Monitor
     env = gym.make('MountainCar-v0')
-    env = wrappers.Monitor(env,'tmp/MountainCar-v0')
+    #env = wrappers.Monitor(env,'tmp/MountainCar-v0')
 
     for i in range(trials):
         score=0
