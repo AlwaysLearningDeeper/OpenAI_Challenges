@@ -150,7 +150,7 @@ def createNetwort():
     loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE).minimize(cost)
+    optimizer = tf.train.AdamOptimizer(1e-6).minimize(cost)
 
     return output,optimizer
 
@@ -244,7 +244,7 @@ def trainDQN(nn,optimizer,sess):
                 t = memory.sample_transition()
                 frames[i] = t[0]
                 actions.append(t[1])
-                if t[-1]:
+                if t[4]:
                     y.append(t[2])
                 else:
                     y.append(t[2] + DISCOUNT_RATE * np.max(sess.run([nn], {input_tensor: np.array(t[3], ndmin=4)})))
@@ -254,9 +254,9 @@ def trainDQN(nn,optimizer,sess):
             if done:
                 frame_stack = []
                 game += 1
-                print("We have finished game ", game, " with score:", score)
-                score = 0
+                # print("At step ",step," we have finished game ",game," with score:",score)
                 game_scores.append(score)
+                score = 0
                 if game % 1000 == 0:
                     saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
                     print('Network backup done')
@@ -264,6 +264,7 @@ def trainDQN(nn,optimizer,sess):
                     print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
                           " currently at game ", game, " , step ", step)
                     print("The average score of all games is:", np.mean(game_scores))
+
                 env.reset()
                 initial_no_op = np.random.randint(4, 50)
                 i = 0
