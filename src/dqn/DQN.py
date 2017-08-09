@@ -23,6 +23,7 @@ RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 15000
 RANDOM_STEPS_REPLAY_MEMORY_INIT = 15000
+SUMMARY_STEPS = 100
 NO_OP_MAX = 30
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
@@ -145,14 +146,20 @@ def model():
     optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON
                                           ,decay=RMSPROP_DECAY).minimize(cost)
 
+    #Summary tensors
+    cost_s = tf.summary.scalar("cost",cost)
+    avg_Q = tf.summary.scalar("avg_Q",tf.reduce_mean(output))
+    merged = tf.summary.merge_all()
 
-    return output,optimizer,cost
+    return output,optimizer,merged
 
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
-        output, optimizer, X = model()
+        output, optimizer, merged = model()
 
+        summary_writer = tf.summary.FileWriter('tmp/logs',
+                              sess.graph)
 
         saver = tf.train.Saver()
         checkpoint = tf.train.get_checkpoint_state("saved_networks")
@@ -238,17 +245,24 @@ def train():
                 y = []
 
 
-                for i in range(0, MINIBATCH_SIZE):
+                for batch_i in range(0, MINIBATCH_SIZE):
                     t = memory.sample_transition()
-                    frames[i]=t[0]
+                    frames[batch_i]=t[0]
                     actions.append(t[1])
                     if t[-1]:
                         y.append(t[2])
                     else:
                         y.append(t[2]+DISCOUNT_RATE * np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
+                if step % SUMMARY_STEPS == 0:
+                    m, opt = sess.run([merged,optimizer],
+                             {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
+                    summary_writer.add_summary(m, step)
 
-                sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
+
+
+                else:
+                    sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
 
                 #print(y)
                 #print(sess.run([X], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)}))
