@@ -7,15 +7,16 @@ import tensorflow as tf
 import numpy as np
 import cv2,re,random
 
-STEPS= 10000000
+STEPS= 100000000000
 ENVIRONMENT = 'Breakout-v0'
 SAVE_NETWORK = True
+LOAD_NETWORK = False
 BACKUP_RATE = 500
 UPDATE_TIME = 100
 NUM_CHANNELS = 4  # image channels
 IMAGE_SIZE = 84  # 84x84 pixel images
 SEED = 17  # random initialization seed
-ACTIONS = [1,2,3]  # number of actions for this game
+ACTIONS = [0,1,2,3]  # number of actions for this game
 BATCH_SIZE = 32
 INITIAL_EPSILON = 1.0
 GAMMA = 0.99
@@ -23,6 +24,7 @@ RMS_LEARNING_RATE = 0.00025
 RMS_DECAY = 0.99
 RMS_MOMENTUM = 0.0
 RMS_EPSILON = 1e-6
+NO_OP_MAX = 30
 NO_OP_CODE = 1
 
 def rgb2gray(rgb):
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     #Saving and loading networks
     saver = tf.train.Saver()
     checkpoint = tf.train.get_checkpoint_state("saved_networks")
-    if checkpoint and checkpoint.model_checkpoint_path:
+    if checkpoint and checkpoint.model_checkpoint_path and LOAD_NETWORK:
         saver.restore(sess, checkpoint.model_checkpoint_path)
         print("Successfully loaded:", checkpoint.model_checkpoint_path)
         game = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
@@ -56,7 +58,7 @@ if __name__ == '__main__':
     sess.run(tf.global_variables_initializer())
     game = 0
     game_scores =[]
-    initial_no_op = np.random.randint(4, 30)
+    initial_no_op = np.random.randint(4, NO_OP_MAX)
     i=0
     frame_stack=Stack(4)
     score=0
@@ -74,16 +76,18 @@ if __name__ == '__main__':
         else:
 
             state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
-            action = dqn.selectAction(state)
-            actionN = np.argmax(dqn.selectAction(state))
-            #print(actionN)
+
+            action = dqn.selectAction(state,step)
+            actionN = np.argmax(dqn.selectAction(state,step))
+
             next_state, reward, game_over, info = env.step(actionN)
 
-            #if reward > -1:
+            frame_stack.push(next_state)
+
             greyObservation = rgb2gray(next_state)
             next_state = downSample(greyObservation)
-            next_state = np.stack((next_state, next_state, next_state, next_state), axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
-            #next_state = np.append(next_state, state, axis=2)
+
+            next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
             dqn.storeExperience(state, action, reward, next_state, game_over)
 
             score += reward
@@ -121,8 +125,8 @@ if __name__ == '__main__':
             #                       {dqn.yInput: y_batch, dqn.actionInput: action_batch,
             #                        dqn.currentQNet.stateInput: state_batch})
             #     summary_writer.add_summary(m, step)
-            if step % UPDATE_TIME == 0:
-                sess.run(dqn.copyCurrentToTargetOperation())
+            # if step % UPDATE_TIME == 0:
+            #     sess.run(dqn.copyCurrentToTargetOperation())
 
             if game_over:
                 frame_stack.empty()
@@ -138,7 +142,7 @@ if __name__ == '__main__':
                 # else:
                 #     print('Game %s finished with score %s' % (game, score))
                 env.reset()
-                initial_no_op = np.random.randint(4, 50)
+                initial_no_op = np.random.randint(4, NO_OP_MAX)
                 i=0
                 score = 0
 
