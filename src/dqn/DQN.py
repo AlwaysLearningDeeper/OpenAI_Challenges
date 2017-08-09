@@ -23,6 +23,7 @@ RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 15000
 RANDOM_STEPS_REPLAY_MEMORY_INIT = 15000
+NO_OP_MAX = 30
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -169,7 +170,7 @@ def train():
         game_scores = []
         i = 0
         frame_stack = []
-        initial_no_op = np.random.randint(4,50)
+        initial_no_op = np.random.randint(4,NO_OP_MAX)
         game = 1
         for step in range(TRAINING_STEPS):
             if i < initial_no_op:
