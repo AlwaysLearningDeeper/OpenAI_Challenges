@@ -1,10 +1,10 @@
 
 [NEAT]
-pop_size              = 150
+pop_size              = 200
 # Note: the fitness threshold will never be reached because
 # we are controlling the termination ourselves based on simulation performance.
 fitness_criterion     = max
-fitness_threshold     = 1000.0
+fitness_threshold     = -85
 reset_on_extinction   = 0
 
 [DefaultGenome]
@@ -19,9 +19,9 @@ conn_add_prob           = 0.15
 conn_delete_prob        = 0.1
 node_add_prob           = 0.15
 node_delete_prob        = 0.1
-activation_default      = clamped
-activation_options      = clamped
-activation_mutate_rate  = 0.0
+activation_default      = relu
+activation_options      = clamped relu exp
+activation_mutate_rate  = 0.01
 aggregation_default     = sum
 aggregation_options     = sum
 aggregation_mutate_rate = 0.0
@@ -34,7 +34,7 @@ bias_max_value          = 30.0
 bias_min_value          = -30.0
 response_init_mean      = 1.0
 response_init_stdev     = 0.0
-response_replace_rate   = 0.0
+response_replace_rate   = 0.01
 response_mutate_rate    = 0.1
 response_mutate_power   = 0.01
 response_max_value      = 30.0
@@ -55,7 +55,7 @@ compatibility_threshold = 3.0
 
 [DefaultStagnation]
 species_fitness_func = mean
-max_stagnation       = 15
+max_stagnation       = 5
 species_elitism      = 4
 
 [DefaultReproduction]
