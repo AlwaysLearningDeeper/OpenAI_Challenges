@@ -14,6 +14,7 @@ RMS_LEARNING_RATE = 0.00025
 RMS_DECAY = 0.99
 RMS_MOMENTUM = 0.0
 RMS_EPSILON = 1e-6
+REPLAY_MEMORY = 15000
 
 
 def weight_variable(shape, sdev=0.1):
@@ -62,7 +63,7 @@ class QNet:
 
         # reshape for fully connected layer
         relu_shape = h_relu3.get_shape().as_list()
-        print(relu_shape)
+        print('Output relu shape %s' % relu_shape)
         reshape = tf.reshape(h_relu3,
                              [-1, relu_shape[1] * relu_shape[2] * relu_shape[3]])
         # fully connected and output layers
@@ -111,7 +112,13 @@ class DQN:
         return action
 
     def storeExperience(self, state, action, reward, newState, terminalState):
-        self.replayMemory.append((state, action, reward, newState, terminalState))
+        if len(self.replayMemory) < REPLAY_MEMORY:
+            self.replayMemory.append((state, action, reward, newState, terminalState))
+        else:
+            #print('Max replay memory reached')
+            self.replayMemory.pop()
+            self.replayMemory.append((state, action, reward, newState, terminalState))
+
 
     def sampleExperiences(self):
         if len(self.replayMemory) < BATCH_SIZE:

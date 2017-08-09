@@ -1,18 +1,21 @@
 from DQN_J2 import *
 from utils.Stack import *
 import gym
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import tensorflow as tf
 import numpy as np
 import cv2,re,random
 
-STEPS= 10000
+STEPS= 10000000
 ENVIRONMENT = 'Breakout-v0'
-UPDATE_TIME = 100
+SAVE_NETWORK = True
+BACKUP_RATE = 500
 NUM_CHANNELS = 4  # image channels
 IMAGE_SIZE = 84  # 84x84 pixel images
 SEED = 17  # random initialization seed
-ACTIONS = [1,2,3,4]  # number of actions for this game
-BATCH_SIZE = 100
+ACTIONS = [1,2,3]  # number of actions for this game
+BATCH_SIZE = 32
 INITIAL_EPSILON = 1.0
 GAMMA = 0.99
 RMS_LEARNING_RATE = 0.00025
@@ -31,15 +34,15 @@ def downSample(image):
 if __name__ == '__main__':
     env = gym.make(ENVIRONMENT)
     actions = ACTIONS
+
+    #Instanciate the DQN
     dqn = DQN(actions)
     action = NO_OP_CODE
     env.reset()
-    #state, reward, done, info = env.step(action)
-    #greyObservation = rgb2gray(state)
-    #state = downSample(greyObservation)
-    #state = np.stack((state, state, state, state), axis=2).reshape((84, 84, 4))
 
     sess = tf.InteractiveSession()
+
+    #Saving and loading networks
     saver = tf.train.Saver()
     checkpoint = tf.train.get_checkpoint_state("saved_networks")
     if checkpoint and checkpoint.model_checkpoint_path:
@@ -48,13 +51,16 @@ if __name__ == '__main__':
         game = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
     else:
         print("Could not find old network weights")
-    sess.run(tf.initialize_all_variables())
+
+    sess.run(tf.global_variables_initializer())
     game = 0
     game_scores =[]
     initial_no_op = np.random.randint(4, 30)
     i=0
     frame_stack=Stack(4)
     score=0
+
+    print('Started training')
     for step in range(STEPS):
         if i < initial_no_op:
             # WE PERFORM A RANDOM NUMBER OF NO_OP ACTIONS
@@ -64,12 +70,9 @@ if __name__ == '__main__':
             state = downSample(greyObservation)
             frame_stack.push(state)
             i+=1
-        # elif i==initial_no_op:
-        #     print(len(frame_stack))
-        #     num = random.sample(range(1, len(frame_stack) - 1), 4)
-        #     frame_stack = (frame_stack[num[0]], frame_stack[num[1]], frame_stack[num[2]], frame_stack[num[3]])
         else:
-            state = np.stack(frame_stack.items, axis=2).reshape((84, 84, 4))
+
+            state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
             action = dqn.selectAction(state)
             actionN = np.argmax(dqn.selectAction(state))
             #print(actionN)
@@ -78,7 +81,7 @@ if __name__ == '__main__':
             #if reward > -1:
             greyObservation = rgb2gray(next_state)
             next_state = downSample(greyObservation)
-            next_state = np.stack((next_state, next_state, next_state, next_state), axis=2).reshape((84, 84, 4))
+            next_state = np.stack((next_state, next_state, next_state, next_state), axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
             #next_state = np.append(next_state, state, axis=2)
             dqn.storeExperience(state, action, reward, next_state, game_over)
 
@@ -117,15 +120,15 @@ if __name__ == '__main__':
                 frame_stack.empty()
                 game +=1
                 game_scores.append(score)
-                if game % 1000 == 0:
+                if game % BACKUP_RATE == 0 and SAVE_NETWORK:
                     saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
                     print('Network backup done')
                 if (game % 20) == 0:
                     print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
                           " currently at game ", game, " , step ", step)
                     print("The average score of all games is:", np.mean(game_scores))
-                else:
-                    print('Game %s finished with score %s' % (game, score))
+                # else:
+                #     print('Game %s finished with score %s' % (game, score))
                 env.reset()
                 initial_no_op = np.random.randint(4, 50)
                 i=0
