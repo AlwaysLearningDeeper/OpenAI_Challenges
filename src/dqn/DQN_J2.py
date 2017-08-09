@@ -94,6 +94,10 @@ class DQN:
         self.loss = tf.reduce_mean(tf.square(self.yInput - self.Q_action))
         self.trainStep = tf.train.RMSPropOptimizer(RMS_LEARNING_RATE, RMS_DECAY, RMS_MOMENTUM, RMS_EPSILON).minimize(
             self.loss)
+        #
+        # self.lossS= tf.summary.scalar("cost", self.loss)
+        # self.avg_Q = tf.summary.scalar("avg_Q", tf.reduce_mean(self.targetQNet.QValue))
+        # self.merged = tf.summary.merge_all()
 
     def copyCurrentToTargetOperation(self):
         targetProps = self.targetQNet.properties()

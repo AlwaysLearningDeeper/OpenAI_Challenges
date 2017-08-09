@@ -11,6 +11,7 @@ STEPS= 10000000
 ENVIRONMENT = 'Breakout-v0'
 SAVE_NETWORK = True
 BACKUP_RATE = 500
+UPDATE_TIME = 100
 NUM_CHANNELS = 4  # image channels
 IMAGE_SIZE = 84  # 84x84 pixel images
 SEED = 17  # random initialization seed
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     i=0
     frame_stack=Stack(4)
     score=0
-
+    # summary_writer = tf.summary.FileWriter('home/jiwidi/Documents/logs',sess.graph)
     print('Started training')
     for step in range(STEPS):
         if i < initial_no_op:
@@ -115,6 +116,13 @@ if __name__ == '__main__':
             sess.run(dqn.trainStep, feed_dict={dqn.yInput: y_batch, dqn.actionInput: action_batch,dqn.currentQNet.stateInput: state_batch})
 
             state = next_state
+            # if step % 100 == 0:
+            #     m, opt = sess.run([dqn.merged, dqn.trainStep],
+            #                       {dqn.yInput: y_batch, dqn.actionInput: action_batch,
+            #                        dqn.currentQNet.stateInput: state_batch})
+            #     summary_writer.add_summary(m, step)
+            if step % UPDATE_TIME == 0:
+                sess.run(dqn.copyCurrentToTargetOperation())
 
             if game_over:
                 frame_stack.empty()
@@ -133,3 +141,4 @@ if __name__ == '__main__':
                 initial_no_op = np.random.randint(4, 50)
                 i=0
                 score = 0
+
