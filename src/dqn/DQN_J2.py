@@ -62,7 +62,7 @@ class QNet:
 
         # reshape for fully connected layer
         relu_shape = h_relu3.get_shape().as_list()
-        print(relu_shape)
+        print('Output relu shape %s' % relu_shape)
         reshape = tf.reshape(h_relu3,
                              [-1, relu_shape[1] * relu_shape[2] * relu_shape[3]])
         # fully connected and output layers
