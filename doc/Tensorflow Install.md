@@ -9,6 +9,7 @@ Just install the python module `tensorflow`. If you want it to be faster, you ca
 Follow the following [guide](https://github.com/i3/i3status/raw/master/contrib/check_mail.py):
 
 1. Install the following dependencies (ubuntu packages, if you have another system find their counterparts):
+
     openjdk-8-jdk git python-dev python3-dev python-numpy python3-numpy python-six python3-six build-essential python-pip python3-pip python-virtualenv swig python-wheel python3-wheel libcurl3-dev libcupti-dev
 
 2. Switch from noveau drivers to the proprietary nvidia drivers and reboot your computer. In Ubuntu this can be done in `Settings > Proprietary Drivers`
