@@ -12,7 +12,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 MEMORY_LENGTH = 4
 ACTIONS = 4
-LEARNING_RATE_SGD = 0.000025
+LEARNING_RATE_SGD = 0.0000025
 LEARNING_RATE_RMSPROP = 0.00025
 FINAL_EXPLORATION_FRAME = 1000000
 TRAINING_STEPS = 10000000
@@ -132,7 +132,7 @@ def model():
     conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='SAME')
     conv_3_flat = tf.reshape(conv_3,[-1,11*11*64])
     relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512)
-    output = tf.contrib.layers.fully_connected(relu_1,num_outputs=ACTIONS)
+    output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS)
 
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
     apply_action_mask = tf.multiply(output,actions_one_hot)
@@ -143,8 +143,7 @@ def model():
 
     cost = tf.reduce_mean(loss)
     #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON
-                                          ,decay=RMSPROP_DECAY).minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
 
     #Summary tensors
     cost_s = tf.summary.scalar("cost",cost)
@@ -199,7 +198,8 @@ def train():
                     action = env.action_space.sample()
                 else:
                     # Pick action in a greedy way
-                    action = np.argmax(sess.run([output],{input_tensor:np.array(s_t, ndmin=4)}))
+                    Q = sess.run([output],{input_tensor:np.array(s_t, ndmin=4)})
+                    action = np.argmax(Q)
 
                 # STORE TRANSITION
 
@@ -258,8 +258,6 @@ def train():
                     m, opt = sess.run([merged,optimizer],
                              {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
                     summary_writer.add_summary(m, step)
-
-
 
                 else:
                     sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
