@@ -13,11 +13,12 @@ tf.logging.set_verbosity(tf.logging.INFO)
 MEMORY_LENGTH = 4
 ACTIONS = 4
 LEARNING_RATE_SGD = 0.000025
-LEARNING_RATE_RMSProp = 0.00025
+LEARNING_RATE_RMSPROP = 0.00025
 FINAL_EXPLORATION_FRAME = 1000000
 TRAINING_STEPS = 10000000
 DISCOUNT_RATE = 0.99
 RMSPROP_MOMENTUM = 0.95
+RMSPROP_DECAY = 0.95
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 15000
@@ -132,15 +133,17 @@ def model():
     output = tf.contrib.layers.fully_connected(relu_1,num_outputs=ACTIONS)
 
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
-    eliminate_other_Qs = tf.multiply(output,actions_one_hot)
-    Q_of_selected_action = tf.reduce_sum(eliminate_other_Qs)
+    apply_action_mask = tf.multiply(output,actions_one_hot)
+    Q_of_selected_action = tf.reduce_sum(apply_action_mask)
 
 
     loss = tf.square(tf.subtract(Q_of_selected_action, y_tensor))
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSProp,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON).minimize(cost)
+    #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON
+                                          ,decay=RMSPROP_DECAY).minimize(cost)
+
 
     return output,optimizer,cost
 
@@ -247,7 +250,7 @@ def train():
                 sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
 
                 #print(y)
-                print(sess.run([X], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)}))
+                #print(sess.run([X], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)}))
 
 
                 if done:
