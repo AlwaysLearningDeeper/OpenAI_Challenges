@@ -39,7 +39,7 @@ def randomSteps(env,steps=REPLAY_MEMORY_SIZE):
     t0 = time.time()
     env.reset()
     i = 0
-    frame_stack = []
+    frame_stack = Stack(4)
     initial_no_op = np.random.randint(4, NO_OP_MAX)
 
     for _ in range(0,steps):
