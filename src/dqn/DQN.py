@@ -150,12 +150,16 @@ def model():
     avg_Q = tf.summary.scalar("avg_Q",tf.reduce_mean(output))
     merged = tf.summary.merge_all()
 
-    return output,optimizer,merged
+    avg_Score_l20_plhldr = tf.placeholder(tf.float32,None,name="avg_scores")
+    avg_Score_l20 = tf.summary.scalar("avg_Score_l20",avg_Score_l20_plhldr)
+
+
+    return output,optimizer,merged,avg_Score_l20_plhldr,avg_Score_l20
 
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
-        output, optimizer, merged = model()
+        output, optimizer, merged,avg_Score_l20_plhldr,avg_Score_l20 = model()
 
         summary_writer = tf.summary.FileWriter('tmp/logs',
                               sess.graph)
@@ -262,26 +266,23 @@ def train():
                 else:
                     sess.run([optimizer],{input_tensor:frames,actions_tensor:np.array(actions),y_tensor:np.array(y)})
 
-                #print(y)
-                #print(sess.run([X], {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)}))
-
 
                 if done:
                     frame_stack = []
                     game += 1
-                    #print("At step ",step," we have finished game ",game," with score:",score)
                     game_scores.append(score)
-                    score = 0
                     if game % 1000 == 0:
                         saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
                         print('Network backup done')
                     if (game % 20) == 0:
                         print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
                               " currently at game ", game, " , step ", step)
+                        summary_scores = sess.run(avg_Score_l20, {avg_Score_l20_plhldr: np.mean(game_scores[-20:])})
+                        summary_writer.add_summary(summary_scores, step)
                         print("The average score of all games is:", np.mean(game_scores))
-
+                    score = 0
                     env.reset()
-                    initial_no_op = np.random.randint(4, 50)
+                    initial_no_op = np.random.randint(4, NO_OP_MAX)
                     i=0
 
 
