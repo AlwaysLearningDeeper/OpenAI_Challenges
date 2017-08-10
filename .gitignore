@@ -113,3 +113,5 @@ src/dqn/saved_networks/
 neat-checkpoint-*
 
 src/dqn/saved_networks_old_modedl/
+
+src/dqn/home/jiwidi/Documents/logs/

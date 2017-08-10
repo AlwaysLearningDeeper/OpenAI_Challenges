@@ -7,7 +7,7 @@ NUM_CHANNELS = 4  # image channels
 IMAGE_SIZE = 84  # 84x84 pixel images
 SEED = 17  # random initialization seed
 NUM_ACTIONS = 4  # number of actions for this game
-BATCH_SIZE = 100
+BATCH_SIZE = 32
 INITIAL_EPSILON = 1.0
 GAMMA = 0.99
 RMS_LEARNING_RATE = 0.00025
@@ -18,7 +18,7 @@ RMS_EPSILON = 0.01
 REPLAY_MEMORY = 15000
 FINAL_EXPLORATION_FRAME = 1000000
 
-def weight_variable(shape, sdev=0.1):
+def weight_variable(shape, sdev=0.1):5
     initial = tf.truncated_normal(shape, stddev=sdev, seed=SEED)
     return tf.Variable(initial)
 
