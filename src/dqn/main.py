@@ -57,7 +57,7 @@ def randomSteps(env,steps,dqn):
 
             action = np.random.randint(0, len(ACTIONS))
 
-            next_state, reward, game_over, info = env.step(actionN)
+            next_state, reward, game_over, info = env.step(action)
 
 
             greyObservation = rgb2gray(next_state)
