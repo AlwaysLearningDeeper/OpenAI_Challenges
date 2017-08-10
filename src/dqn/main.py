@@ -67,6 +67,7 @@ def randomSteps(env,steps=REPLAY_MEMORY_SIZE):
             frame_stack.push(next_state)
 
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
+
             dqn.storeExperience(state, action, reward, next_state, game_over)
             if done:
                 #print("Episode finished after {} timesteps".format(_ + 1))
@@ -84,6 +85,8 @@ def downSample(image):
 
 if __name__ == '__main__':
 
+    avg_Score_l20_plhldr = tf.placeholder(tf.float32,None,name="avg_scores")
+    avg_Score_l20 = tf.summary.scalar("avg_Score_l20",avg_Score_l20_plhldr)
     env = gym.make(ENVIRONMENT)
     randomSteps(env,REPLAY_MEMORY_SIZE)
     actions = ACTIONS
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     i=0
     frame_stack=Stack(4)
     score=0
-    # summary_writer = tf.summary.FileWriter('logs',sess.graph)
+    summary_writer = tf.summary.FileWriter('logs',sess.graph)
     print('Started training')
     for step in range(STEPS):
         if i < initial_no_op:
@@ -185,6 +188,8 @@ if __name__ == '__main__':
                 if (game % 20) == 0:
                     print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
                           " currently at game ", game, " , step ", step)
+                    summary_scores = sess.run(avg_Score_l20, {avg_Score_l20_plhldr: np.mean(game_scores[-20:])})
+                    summary_writer.add_summary(summary_scores, step)
                     print("The average score of all games is:", np.mean(game_scores))
                 # else:
                 #     print('Game %s finished with score %s' % (game, score))
