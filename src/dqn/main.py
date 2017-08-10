@@ -35,7 +35,7 @@ NO_OP_CODE = 1
 def rgb2gray(rgb):
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
 
-def randomSteps(env,steps=REPLAY_MEMORY_SIZE):
+def randomSteps(env,steps,dqn):
     t0 = time.time()
     env.reset()
     i = 0
@@ -55,8 +55,7 @@ def randomSteps(env,steps=REPLAY_MEMORY_SIZE):
 
             state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
-            action = dqn.selectAction(state,step)
-            actionN = np.argmax(dqn.selectAction(state,step))
+            action = np.random.randint(0, len(ACTIONS))
 
             next_state, reward, game_over, info = env.step(actionN)
 
@@ -88,11 +87,12 @@ if __name__ == '__main__':
     avg_Score_l20_plhldr = tf.placeholder(tf.float32,None,name="avg_scores")
     avg_Score_l20 = tf.summary.scalar("avg_Score_l20",avg_Score_l20_plhldr)
     env = gym.make(ENVIRONMENT)
-    randomSteps(env,REPLAY_MEMORY_SIZE)
+
     actions = ACTIONS
 
     #Instanciate the DQN
     dqn = DQN(actions)
+    randomSteps(env, REPLAY_MEMORY_SIZE,dqn)
     action = NO_OP_CODE
     env.reset()
 
