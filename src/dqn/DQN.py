@@ -97,7 +97,6 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
                 )
 
         if done:
-            #print("Episode finished after {} timesteps".format(_ + 1))
             env.reset()
             i=0
             frame_stack=[]
@@ -105,13 +104,7 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
 
 
     t1 = time.time()
-    print("This operation took:",t1-t0,)
-
-    #Sample random transitions and show
-    #for _ in range(5):
-        #t = np.split(memory.sample_transition()[0],4,2)
-        #plt.imshow(t[0].reshape(84, 84), cmap=matplotlib.cm.Greys_r)
-        #plt.show()
+    print("Filling the replay memory with random steps took: ",t1-t0," s")
 
 
 def getEpsilon(step):
@@ -208,7 +201,6 @@ def train():
                 # STORE TRANSITION
 
                 observation, reward, done, info = env.step(action)
-
                 score += reward
 
                 #Process received frame
