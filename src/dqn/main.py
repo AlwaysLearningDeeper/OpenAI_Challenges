@@ -17,7 +17,7 @@ NUM_CHANNELS = 4  # image channels
 IMAGE_SIZE = 84  # 84x84 pixel images
 SEED = 17  # random initialization seed
 ACTIONS = [0,1,2,3]  # number of actions for this game
-BATCH_SIZE = 32
+#BATCH_SIZE = 32
 INITIAL_EPSILON = 1.0
 GAMMA = 0.99
 RMS_LEARNING_RATE = 0.00025
@@ -56,7 +56,8 @@ def randomSteps(env,steps,dqn):
             state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
             action = np.random.randint(0, len(ACTIONS))
-
+            actionH =np.zeros(len(ACTIONS))
+            actionH[action] = 1
             next_state, reward, game_over, info = env.step(action)
 
 
@@ -67,7 +68,7 @@ def randomSteps(env,steps,dqn):
 
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
-            dqn.storeExperience(state, action, reward, next_state, game_over)
+            dqn.storeExperience(state, actionH, reward, next_state, game_over)
             if done:
                 #print("Episode finished after {} timesteps".format(_ + 1))
                 env.reset()
@@ -77,7 +78,7 @@ def randomSteps(env,steps,dqn):
 
 
     t1 = time.time()
-    print("This operation took:",t1-t0,)
+    print("Fullfilling replay memory operation took:",t1-t0,)
 
 def downSample(image):
     return cv2.resize(image, (84, 84), interpolation=cv2.INTER_LINEAR)
@@ -92,7 +93,10 @@ if __name__ == '__main__':
 
     #Instanciate the DQN
     dqn = DQN(actions)
+
+    #Create replay memory
     randomSteps(env, REPLAY_MEMORY_SIZE,dqn)
+
     action = NO_OP_CODE
     env.reset()
 
@@ -136,7 +140,9 @@ if __name__ == '__main__':
             next_state, reward, game_over, info = env.step(actionN)
             greyObservation = rgb2gray(next_state)
             next_state = downSample(greyObservation)
+
             frame_stack.push(next_state)
+
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
 
