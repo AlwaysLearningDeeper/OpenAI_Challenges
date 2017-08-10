@@ -18,13 +18,17 @@ FINAL_EXPLORATION_FRAME = 1000000
 TRAINING_STEPS = 10000000
 DISCOUNT_RATE = 0.99
 RMSPROP_MOMENTUM = 0.95
-RMSPROP_DECAY = 0.95
+RMSPROP_DECAY = 0.9
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 15000
 RANDOM_STEPS_REPLAY_MEMORY_INIT = 15000
 SUMMARY_STEPS = 100
+initial_step = 0
 NO_OP_MAX = 30
+SAVE_PATH = "saved_networks"
+LOG_DIRECTORY = "tmp/logs/"
+RUN_STRING = "lr_0.00025,decay_0.9,momentum_0.95,discountRate_0.99,replayMemorySize_15000"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -154,17 +158,18 @@ def train():
         tf.set_random_seed(TF_RANDOM_SEED)
         output, optimizer, merged,avg_Score_l20_plhldr,avg_Score_l20 = model()
 
-        summary_writer = tf.summary.FileWriter('tmp/logs',
+        summary_writer = tf.summary.FileWriter(LOG_DIRECTORY + RUN_STRING,
                               sess.graph)
 
         saver = tf.train.Saver()
-        checkpoint = tf.train.get_checkpoint_state("saved_networks")
+        checkpoint = tf.train.get_checkpoint_state(SAVE_PATH + "/" + RUN_STRING)
         if checkpoint and checkpoint.model_checkpoint_path:
             saver.restore(sess, checkpoint.model_checkpoint_path)
             print("Successfully loaded:", checkpoint.model_checkpoint_path)
-            game = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
+            initial_step = int(re.match('.*?([0-9]+)$', checkpoint.model_checkpoint_path).group(1))
         else:
             print("Could not find old network weights")
+            initial_step = 0
 
 
         sess.run(tf.global_variables_initializer())
@@ -175,7 +180,7 @@ def train():
         frame_stack = []
         initial_no_op = np.random.randint(4,NO_OP_MAX)
         game = 1
-        for step in range(TRAINING_STEPS):
+        for step in range(initial_step,TRAINING_STEPS):
             if i < initial_no_op:
                 # WE PERFORM A RANDOM NUMBER OF NO_OP ACTIONS
                 action = NO_OP_CODE
@@ -264,7 +269,7 @@ def train():
                     game += 1
                     game_scores.append(score)
                     if game % 1000 == 0:
-                        saver.save(sess, 'saved_networks/' + ENVIRONMENT + '-dqn', global_step=game)
+                        saver.save(sess, SAVE_PATH +"/" +RUN_STRING +"/" + ENVIRONMENT + '-dqn', global_step=step)
                         print('Network backup done')
                     if (game % 20) == 0:
                         print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
