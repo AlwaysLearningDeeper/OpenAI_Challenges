@@ -18,7 +18,7 @@ RMS_EPSILON = 0.01
 REPLAY_MEMORY = 15000
 FINAL_EXPLORATION_FRAME = 1000000
 
-def weight_variable(shape, sdev=0.1):5
+def weight_variable(shape, sdev=0.1):
     initial = tf.truncated_normal(shape, stddev=sdev, seed=SEED)
     return tf.Variable(initial)
 
