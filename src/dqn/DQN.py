@@ -18,21 +18,21 @@ FINAL_EXPLORATION_FRAME = 1000000
 TRAINING_STEPS = 10000000
 DISCOUNT_RATE = 0.99
 RMSPROP_MOMENTUM = 0.95
-RMSPROP_DECAY = 0.9
+RMSPROP_DECAY = 0.95
 RMSPROP_EPSILON = 0.01
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 15000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 15000
+REPLAY_MEMORY_SIZE = 150000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 150000
 SUMMARY_STEPS = 100
 initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.00025,decay_0.9,momentum_0.95,discountRate_0.99,replayMemorySize_15000"
+RUN_STRING = "lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_150000uint8"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
-type = np.dtype(np.float32)
+type = np.dtype(np.uint8)
 
 env = gym.make(ENVIRONMENT)
 env.reset()
@@ -283,6 +283,12 @@ def train():
                     i=0
 
 
+def sampleFrames():
+    for _ in range(10):
+        t = np.split(memory.sample_transition()[0],4,2)
+        plt.imshow(t[0].reshape(84, 84), cmap=matplotlib.cm.Greys_r)
+        plt.show()
 
 randomSteps()
+sampleFrames()
 train()
