@@ -1,4 +1,4 @@
-class Stack:
+class Pipe:
     def __init__(self,length):
         self.items = []
         self.length = length
@@ -9,10 +9,10 @@ class Stack:
     def push(self, item):
         self.items.append(item)
         if(self.size() > self.length):
-            self.pop()
+            self.items.pop(0)
 
     def pop(self):
-        return self.items.pop()
+        return self.items.pop(0)
 
     def peek(self):
         return self.items[len(self.items) - 1]

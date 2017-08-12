@@ -16,6 +16,7 @@ RMS_MOMENTUM = 0.95
 #RMS_EPSILON = 1e-6
 RMS_EPSILON = 0.01
 REPLAY_MEMORY = 200000
+
 FINAL_EXPLORATION_FRAME = 1000000
 
 def weight_variable(shape, sdev=0.1):
@@ -97,18 +98,22 @@ class DQN:
         self.currentQNet = QNet(len(actions))
         self.targetQNet = QNet(len(actions))
 
-        self.actionInput = tf.placeholder("float", [None, len(actions)],name="input")
+        self.actionInput = tf.placeholder("float", [None, len(actions)],name="actions_one_hot")
         self.yInput = tf.placeholder("float", [None],name="y")
 
-        self.Q_action = tf.reduce_sum(tf.multiply(self.currentQNet.QValue, self.actionInput), reduction_indices=1)
-        self.loss = tf.square(tf.subtract( self.Q_action, self.yInput ))
+        self.action_mask = tf.multiply(self.currentQNet.QValue, self.actionInput)
+        self.Q_action = tf.reduce_sum(self.action_mask, reduction_indices=1)
+
+        self.delta = delta = tf.subtract(self.Q_action, self.yInput)
+
+        self.loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+        #self.loss = tf.square(tf.subtract( self.Q_action, self.yInput ))
+
         self.cost = tf.reduce_mean(self.loss)
         self.trainStep = tf.train.RMSPropOptimizer(learning_rate=RMS_LEARNING_RATE,momentum=RMS_MOMENTUM,epsilon= RMS_EPSILON,decay=RMS_DECAY).minimize(
             self.cost)
         #
-        # self.lossS= tf.summary.scalar("cost", self.loss)
-        # self.avg_Q = tf.summary.scalar("avg_Q", tf.reduce_mean(self.targetQNet.QValue))
-        # self.merged = tf.summary.merge_all()
+
 
     def copyCurrentToTargetOperation(self):
         targetProps = self.targetQNet.properties()
