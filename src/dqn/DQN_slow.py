@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_100000uint8,huberLoss1,fast"
+RUN_STRING = "lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_100000uint8,huberLoss1"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -176,6 +176,7 @@ def train():
 
 
         sess.run(tf.global_variables_initializer())
+        frames = np.zeros((MINIBATCH_SIZE, 84, 84, 4), np.float32)
         score = 0
         game_scores = []
         i = 0
@@ -245,58 +246,27 @@ def train():
                     )
 
                 # OBTAIN MINIBATCH
-                actionsTerminal = []
-                actionsNonTerminal = []
-                yTerminal = []
-                yNonTerminal = []
-                framesTerminal = []
-                framesNonTerminal = []
-
+                actions = []
+                y = []
 
                 for batch_i in range(0, MINIBATCH_SIZE):
                     t = memory.sample_transition()
+                    frames[batch_i] = t[0]
+                    actions.append(t[1])
                     if t[-1]:
-                        framesTerminal.append(t[0])
-                        actionsTerminal.append(t[1])
-                        yTerminal.append(t[2])
+                        y.append(t[2])
                     else:
-                        framesNonTerminal.append(t[0])
-                        actionsNonTerminal.append(t[1])
-                        yNonTerminal.append(t[2])
+                        y.append(t[2] + DISCOUNT_RATE * np.max(sess.run([output], {input_tensor: np.array(t[3], ndmin=4)})))
 
-                if len(framesNonTerminal) > 0:
-                    V = []
-                    out = sess.run([output], {input_tensor: np.array(framesNonTerminal, ndmin=4)})[0]
-                    for out_index in range(0,len(out)):
-                        V.append(DISCOUNT_RATE*np.max(out[out_index]))
-                    yNonTerminal = np.sum((np.array(yNonTerminal),V), axis=0)
-
-
-                if len (yNonTerminal) == MINIBATCH_SIZE:
-                    frames = np.array(framesNonTerminal, ndmin=4)
-                    actions = np.array(actionsNonTerminal)
-                    y = np.array(yNonTerminal)
-
-                elif len(yTerminal) == MINIBATCH_SIZE:
-                    frames = np.array(framesTerminal, ndmin=4)
-                    actions = np.array(actionsTerminal)
-                    y = np.array(yTerminal)
-
-                else:
-                    framesTerminal = np.array(framesTerminal, ndmin=4)
-                    framesNonTerminal = np.array(framesNonTerminal, ndmin=4)
-
-                    frames = np.concatenate((framesTerminal,framesNonTerminal))
-                    actions = np.concatenate((actionsTerminal,actionsNonTerminal))
-                    y = np.concatenate((yTerminal,yNonTerminal))
 
                 if step % SUMMARY_STEPS == 0:
-                    m, opt = sess.run([merged,optimizer],
-                             {input_tensor: frames, actions_tensor:actions, y_tensor: y})
+                    m, opt = sess.run([merged, optimizer],
+                                      {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
                     summary_writer.add_summary(m, step)
 
                 else:
-                    sess.run([optimizer],{input_tensor:frames,actions_tensor:actions,y_tensor:y})
+                    sess.run([optimizer],
+                             {input_tensor: frames, actions_tensor: np.array(actions), y_tensor: np.array(y)})
 
 
                 if done:
