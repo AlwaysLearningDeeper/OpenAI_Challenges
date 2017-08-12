@@ -15,7 +15,7 @@ RMS_DECAY = 0.95
 RMS_MOMENTUM = 0.95
 #RMS_EPSILON = 1e-6
 RMS_EPSILON = 0.01
-REPLAY_MEMORY = 15000
+REPLAY_MEMORY = 200000
 FINAL_EXPLORATION_FRAME = 1000000
 
 def weight_variable(shape, sdev=0.1):
@@ -93,7 +93,7 @@ class DQN:
         self.timeStep = 0
         self.epsilon = INITIAL_EPSILON
         self.actions = actions
-
+        self.files = 0
         self.currentQNet = QNet(len(actions))
         self.targetQNet = QNet(len(actions))
 
@@ -139,9 +139,9 @@ class DQN:
             #print('Max replay memory reached')
             self.replayMemory.pop()
             self.replayMemory.append((state, action, reward, newState, terminalState))
-
-
+            
     def sampleExperiences(self):
         if len(self.replayMemory) < BATCH_SIZE:
             return list(self.replayMemory)
         return random.sample(self.replayMemory, BATCH_SIZE)
+

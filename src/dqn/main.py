@@ -5,7 +5,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import tensorflow as tf
 import numpy as np
-import cv2,re,random,time
+import cv2,re,random,time,sys
 
 STEPS= 100000000000
 ENVIRONMENT = 'Breakout-v0'
@@ -24,13 +24,16 @@ RMS_LEARNING_RATE = 0.00025
 RMS_DECAY = 0.95
 RMS_MOMENTUM = 0.95
 
-REPLAY_MEMORY_SIZE = 15000
+REPLAY_MEMORY_SIZE = 200000
 #RMS_EPSILON = 1e-6
 RMS_EPSILON = 0.01
-REPLAY_MEMORY = 15000
 FINAL_EXPLORATION_FRAME = 1000000
 NO_OP_MAX = 30
 NO_OP_CODE = 1
+LOG_DIRECTORY = 'logs'
+RUN_STRING = "/lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_100000uint8,huberLoss1,fast"
+type = np.dtype(np.uint8)
+
 
 def rgb2gray(rgb):
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
@@ -68,7 +71,12 @@ def randomSteps(env,steps,dqn):
 
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
-            dqn.storeExperience(state, actionH, reward, next_state, game_over)
+            dqn.storeExperience(
+                state.astype(type),
+                actionH,
+                reward,
+                next_state.astype(type),
+                game_over)
             if done:
                 #print("Episode finished after {} timesteps".format(_ + 1))
                 env.reset()
@@ -77,8 +85,11 @@ def randomSteps(env,steps,dqn):
 
 
 
+
     t1 = time.time()
     print("Fullfilling replay memory operation took:",t1-t0,)
+    print('Size of replay memory %s bytes and has %s elements' % ((sys.getsizeof(dqn.replayMemory)),len(dqn.replayMemory)))
+    print
 
 def downSample(image):
     return cv2.resize(image, (84, 84), interpolation=cv2.INTER_LINEAR)
@@ -120,6 +131,8 @@ if __name__ == '__main__':
     frame_stack=Stack(4)
     score=0
     summary_writer = tf.summary.FileWriter('logs',sess.graph)
+    summary_writer = tf.summary.FileWriter(LOG_DIRECTORY + RUN_STRING,
+                                           sess.graph)
     print('Started training')
     for step in range(STEPS):
         if i < initial_no_op:
@@ -146,7 +159,13 @@ if __name__ == '__main__':
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
 
-            dqn.storeExperience(state, action, reward, next_state, game_over)
+            dqn.storeExperience(
+                state.astype(type),
+                action,
+                reward,
+                next_state.astype(type),
+                game_over
+            )
 
             score += reward
 
