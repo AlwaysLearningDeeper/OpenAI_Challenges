@@ -1,16 +1,16 @@
 from DQN_J2 import *
-from utils.Stack import *
+from utils.Pipe import *
 import gym
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import tensorflow as tf
 import numpy as np
-import cv2,re,random,time
+import cv2,re,random,time,sys
 
 STEPS= 100000000000
 ENVIRONMENT = 'Breakout-v0'
 SAVE_NETWORK = True
-LOAD_NETWORK = True
+LOAD_NETWORK = False
 BACKUP_RATE = 500
 UPDATE_TIME = 100
 NUM_CHANNELS = 4  # image channels
@@ -23,14 +23,17 @@ GAMMA = 0.99
 RMS_LEARNING_RATE = 0.00025
 RMS_DECAY = 0.95
 RMS_MOMENTUM = 0.95
-
-REPLAY_MEMORY_SIZE = 15000
+SUMMARY_STEPS = 100
+REPLAY_MEMORY_SIZE = 200000
 #RMS_EPSILON = 1e-6
 RMS_EPSILON = 0.01
-REPLAY_MEMORY = 15000
 FINAL_EXPLORATION_FRAME = 1000000
 NO_OP_MAX = 30
 NO_OP_CODE = 1
+LOG_DIRECTORY = 'logs'
+RUN_STRING = "/lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_100000uint8,huberLoss1,fast"
+type = np.dtype(np.uint8)
+
 
 def rgb2gray(rgb):
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
@@ -39,7 +42,7 @@ def randomSteps(env,steps,dqn):
     t0 = time.time()
     env.reset()
     i = 0
-    frame_stack = Stack(4)
+    frame_stack = Pipe(4)
     initial_no_op = np.random.randint(4, NO_OP_MAX)
 
     for _ in range(0,steps):
@@ -68,7 +71,12 @@ def randomSteps(env,steps,dqn):
 
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
-            dqn.storeExperience(state, actionH, reward, next_state, game_over)
+            dqn.storeExperience(
+                state.astype(type),
+                actionH,
+                reward,
+                next_state.astype(type),
+                game_over)
             if done:
                 #print("Episode finished after {} timesteps".format(_ + 1))
                 env.reset()
@@ -77,8 +85,11 @@ def randomSteps(env,steps,dqn):
 
 
 
+
     t1 = time.time()
     print("Fullfilling replay memory operation took:",t1-t0,)
+    print('Size of replay memory %s bytes and has %s elements' % ((sys.getsizeof(dqn.replayMemory)),len(dqn.replayMemory)))
+    print
 
 def downSample(image):
     return cv2.resize(image, (84, 84), interpolation=cv2.INTER_LINEAR)
@@ -100,6 +111,10 @@ if __name__ == '__main__':
     action = NO_OP_CODE
     env.reset()
 
+    # lossS= tf.summary.scalar("cost", dqn.loss)
+    # #avg_Q = tf.summary.scalar("avg_Q", tf.reduce_mean(dqn.targetQNet.QValue))
+    # merged = tf.summary.merge_all()
+
     sess = tf.InteractiveSession()
 
     #Saving and loading networks
@@ -117,9 +132,11 @@ if __name__ == '__main__':
     game_scores =[]
     initial_no_op = np.random.randint(4, NO_OP_MAX)
     i=0
-    frame_stack=Stack(4)
+    frame_stack=Pipe(4)
     score=0
     summary_writer = tf.summary.FileWriter('logs',sess.graph)
+    summary_writer = tf.summary.FileWriter(LOG_DIRECTORY + RUN_STRING,
+                                           sess.graph)
     print('Started training')
     for step in range(STEPS):
         if i < initial_no_op:
@@ -146,7 +163,13 @@ if __name__ == '__main__':
             next_state = np.stack(frame_stack.items, axis=2).reshape((IMAGE_SIZE, IMAGE_SIZE, NUM_CHANNELS))
 
 
-            dqn.storeExperience(state, action, reward, next_state, game_over)
+            dqn.storeExperience(
+                state.astype(type),
+                action,
+                reward,
+                next_state.astype(type),
+                game_over
+            )
 
             score += reward
 
@@ -173,6 +196,7 @@ if __name__ == '__main__':
             currentQ_batch = sess.run(dqn.currentQNet.QValue,
                                       feed_dict={dqn.currentQNet.stateInput: state_batch})
 
+
             sess.run(dqn.trainStep, feed_dict={dqn.yInput: y_batch, dqn.actionInput: action_batch,dqn.currentQNet.stateInput: state_batch})
 
             state = next_state
@@ -184,6 +208,9 @@ if __name__ == '__main__':
             # if step % UPDATE_TIME == 0:
             #     sess.run(dqn.copyCurrentToTargetOperation())
 
+
+
+
             if game_over:
                 frame_stack.empty()
                 game +=1
@@ -194,6 +221,8 @@ if __name__ == '__main__':
                 if (game % 20) == 0:
                     print("The average score of the last 20 games is:", np.mean(game_scores[-20:]),
                           " currently at game ", game, " , step ", step)
+
+
                     summary_scores = sess.run(avg_Score_l20, {avg_Score_l20_plhldr: np.mean(game_scores[-20:])})
                     summary_writer.add_summary(summary_scores, step)
                     print("The average score of all games is:", np.mean(game_scores))
