@@ -13,13 +13,13 @@ tf.logging.set_verbosity(tf.logging.INFO)
 MEMORY_LENGTH = 4
 ACTIONS = 4
 LEARNING_RATE_SGD = 0.0000025
-LEARNING_RATE_RMSPROP = 0.00025
+LEARNING_RATE_RMSPROP = .0002
 FINAL_EXPLORATION_FRAME = 1000000
 TRAINING_STEPS = 10000000
-DISCOUNT_RATE = 0.99
-RMSPROP_MOMENTUM = 0.95
-RMSPROP_DECAY = 0.95
-RMSPROP_EPSILON = 0.01
+DISCOUNT_RATE = 0.95
+RMSPROP_MOMENTUM = 0.0
+RMSPROP_DECAY = 0.99
+RMSPROP_EPSILON = 1e-6
 MINIBATCH_SIZE = 32
 REPLAY_MEMORY_SIZE = 100000
 RANDOM_STEPS_REPLAY_MEMORY_INIT = 100000
@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.00025,decay_0.95,momentum_0.95,discountRate_0.99,replayMemorySize_100000uint8,huberLoss1,fast"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_100000uint8,huberLoss1,fast"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -140,6 +140,9 @@ def model():
 
     # Huber loss with delta=1
     loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+
+    # MSE
+    # loss = tf.square(delta)
 
     cost = tf.reduce_mean(loss)
     #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)

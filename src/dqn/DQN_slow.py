@@ -141,6 +141,9 @@ def model():
     # Huber loss with delta=1
     loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
 
+    #MSE
+    # loss = tf.square(delta)
+
     cost = tf.reduce_mean(loss)
     #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
     optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
