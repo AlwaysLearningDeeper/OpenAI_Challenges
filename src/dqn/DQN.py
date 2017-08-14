@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_100000uint8,huberLoss1,fast"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_100000uint8,fast"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -139,10 +139,10 @@ def model():
     delta = tf.subtract(Q_of_selected_action, y_tensor)
 
     # Huber loss with delta=1
-    loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+    # loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
 
     # MSE
-    # loss = tf.square(delta)
+    loss = tf.square(delta)
 
     cost = tf.reduce_mean(loss)
     #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
