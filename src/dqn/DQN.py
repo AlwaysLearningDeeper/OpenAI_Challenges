@@ -12,23 +12,23 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 MEMORY_LENGTH = 4
 ACTIONS = 4
-LEARNING_RATE_SGD = 0.0000025
+LEARNING_RATE_SGD = 0.000002
 LEARNING_RATE_RMSPROP = .0002
-FINAL_EXPLORATION_FRAME = 1000000
-TRAINING_STEPS = 10000000
+FINAL_EXPLORATION_FRAME = 2000000
+TRAINING_STEPS = 20000000
 DISCOUNT_RATE = 0.95
 RMSPROP_MOMENTUM = 0.0
 RMSPROP_DECAY = 0.99
 RMSPROP_EPSILON = 1e-6
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 100000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 100000
+REPLAY_MEMORY_SIZE = 175000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 175000
 SUMMARY_STEPS = 100
 initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_100000uint8,fast"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_150000uint8,trainingSteps_2000000,bias_0.1,weights_N(0,0.01),fast"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 1
 TF_RANDOM_SEED = 7
@@ -123,13 +123,24 @@ actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
 y_tensor = tf.placeholder(tf.float32, [None], name="r")
 
 def model():
+    #He initializer
+    #weights_initializer = tf.contrib.layers.variance_scaling_initializer()
+
+    #Xavier Glorot initializer
+    #weights_initializer = tf.contrib.layers.xavier_initializer()
+
+
+    #NIPS 2013 SPRAUGR parameters
+    weights_initializer = tf.random_normal_initializer(stddev=0.01)
+    biases_initializer = tf.constant_initializer(0.1)
+
     #Placeholders could be here
-    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='SAME')
-    conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='SAME')
-    conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='SAME')
-    conv_3_flat = tf.reshape(conv_3,[-1,11*11*64])
-    relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512)
-    output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS)
+    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+    conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+    conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+    conv_3_flat = tf.contrib.layers.flatten(conv_3)
+    relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+    output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
 
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
     apply_action_mask = tf.multiply(output,actions_one_hot)
