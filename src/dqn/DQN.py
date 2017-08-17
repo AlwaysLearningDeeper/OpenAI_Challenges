@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_175000uint8,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixed"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_175000uint8,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixedReduceSum"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -144,7 +144,7 @@ def model():
 
     actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
     apply_action_mask = tf.multiply(output,actions_one_hot)
-    Q_of_selected_action = tf.reduce_sum(apply_action_mask)
+    Q_of_selected_action = tf.reduce_sum(apply_action_mask,axis=1)
 
 
     delta = tf.subtract(Q_of_selected_action, y_tensor)
