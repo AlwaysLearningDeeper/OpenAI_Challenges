@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,optimizer_SGD,replayMemorySize_175000uint8,fast,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixed"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_175000uint8,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixed"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -156,8 +156,8 @@ def model():
     loss = tf.square(delta)
 
     cost = tf.reduce_mean(loss)
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
-    #optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
+    #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
 
     #Summary tensors
     cost_s = tf.summary.scalar("cost",cost)
