@@ -28,7 +28,7 @@ initial_step = 0
 NO_OP_MAX = 30
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,optimizer_SGD,replayMemorySize_175000uint8,fast,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast"
+RUN_STRING = "lr_0.0002,optimizer_SGD,replayMemorySize_175000uint8,fast,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixed"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -135,9 +135,9 @@ def model():
     biases_initializer = tf.constant_initializer(0.1)
 
     #Placeholders could be here
-    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
-    conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
-    conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
+    conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
+    conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
     conv_3_flat = tf.contrib.layers.flatten(conv_3)
     relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
     output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
