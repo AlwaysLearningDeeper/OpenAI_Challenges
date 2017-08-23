@@ -17,18 +17,19 @@ LEARNING_RATE_RMSPROP = .0002
 FINAL_EXPLORATION_FRAME = 2000000
 TRAINING_STEPS = 20000000
 DISCOUNT_RATE = 0.95
-RMSPROP_MOMENTUM = 0.95
+RMSPROP_MOMENTUM = 0
 RMSPROP_DECAY = 0.99
 RMSPROP_EPSILON = 1e-6
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 150000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 150000
+REPLAY_MEMORY_SIZE = 60000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 60000
 SUMMARY_STEPS = 100
+SAVE_PERIOD = 500
 initial_step = 0
 NO_OP_MAX = 5
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,decay_0.99,momentum_0.95,discountRate_0.95,replayMemorySize_150000uint8,decaySteps_2000000,bias_0.1,weights_N(0,0.01),fast,fixedReduceSum"
+RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_60000uint8,decaySteps_2000000,bias_0.1,weights_He,fast,fixedReduceSum,fixedSTPlus1"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -124,14 +125,14 @@ y_tensor = tf.placeholder(tf.float32, [None], name="r")
 
 def model():
     #He initializer
-    #weights_initializer = tf.contrib.layers.variance_scaling_initializer()
+    weights_initializer = tf.contrib.layers.variance_scaling_initializer()
 
     #Xavier Glorot initializer
     #weights_initializer = tf.contrib.layers.xavier_initializer()
 
 
     #NIPS 2013 SPRAUGR parameters
-    weights_initializer = tf.random_normal_initializer(stddev=0.01)
+    #weights_initializer = tf.random_normal_initializer(stddev=0.00001)
     biases_initializer = tf.constant_initializer(0.1)
 
     #Placeholders could be here
@@ -263,44 +264,46 @@ def train():
                 actionsNonTerminal = []
                 yTerminal = []
                 yNonTerminal = []
-                framesTerminal = []
-                framesNonTerminal = []
+                s_t_framesTerminal = []
+                s_t_framesNonTerminal = []
+                s_t_plus1_framesNonTerminal = []
 
 
                 for batch_i in range(0, MINIBATCH_SIZE):
                     t = memory.sample_transition()
                     if t[-1]:
-                        framesTerminal.append(t[0])
+                        s_t_framesTerminal.append(t[0])
                         actionsTerminal.append(t[1])
                         yTerminal.append(t[2])
                     else:
-                        framesNonTerminal.append(t[0])
+                        s_t_framesNonTerminal.append(t[0])
                         actionsNonTerminal.append(t[1])
                         yNonTerminal.append(t[2])
+                        s_t_plus1_framesNonTerminal.append(t[3])
 
-                if len(framesNonTerminal) > 0:
+                if len(s_t_plus1_framesNonTerminal) > 0:
                     V = []
-                    out = sess.run([output], {input_tensor: np.array(framesNonTerminal, ndmin=4)})[0]
+                    out = sess.run([output], {input_tensor: np.array(s_t_plus1_framesNonTerminal, ndmin=4)})[0]
                     for out_index in range(0,len(out)):
                         V.append(DISCOUNT_RATE*np.max(out[out_index]))
                     yNonTerminal = np.sum((np.array(yNonTerminal),V), axis=0)
 
 
                 if len (yNonTerminal) == MINIBATCH_SIZE:
-                    frames = np.array(framesNonTerminal, ndmin=4)
+                    frames = np.array(s_t_framesNonTerminal, ndmin=4)
                     actions = np.array(actionsNonTerminal)
                     y = np.array(yNonTerminal)
 
                 elif len(yTerminal) == MINIBATCH_SIZE:
-                    frames = np.array(framesTerminal, ndmin=4)
+                    frames = np.array(s_t_framesTerminal, ndmin=4)
                     actions = np.array(actionsTerminal)
                     y = np.array(yTerminal)
 
                 else:
-                    framesTerminal = np.array(framesTerminal, ndmin=4)
-                    framesNonTerminal = np.array(framesNonTerminal, ndmin=4)
+                    s_t_framesTerminal = np.array(s_t_framesTerminal, ndmin=4)
+                    s_t_framesNonTerminal = np.array(s_t_framesNonTerminal, ndmin=4)
 
-                    frames = np.concatenate((framesTerminal,framesNonTerminal))
+                    frames = np.concatenate((s_t_framesTerminal,s_t_framesNonTerminal))
                     actions = np.concatenate((actionsTerminal,actionsNonTerminal))
                     y = np.concatenate((yTerminal,yNonTerminal))
 
@@ -317,7 +320,7 @@ def train():
                     frame_stack = []
                     game += 1
                     game_scores.append(score)
-                    if game % 1000 == 0:
+                    if game % SAVE_PERIOD == 0:
                         saver.save(sess, SAVE_PATH +"/" +RUN_STRING +"/" + ENVIRONMENT + '-dqn', global_step=step)
                         print('Network backup done')
                     if (game % 20) == 0:
