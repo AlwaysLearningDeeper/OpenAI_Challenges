@@ -139,14 +139,9 @@ def play():
             else:
                 # CHOOSING ACTION
                 s_t = stack(frame_stack)
-                if np.random.rand() < getEpsilon(step):
-                    # We make random action with probability epsilon
-                    action = env.action_space.sample()
-                else:
-                    # Pick action in a greedy way
-                    Q = sess.run([output],{input_tensor:np.array(s_t, ndmin=4)})
-                    action = np.argmax(Q)
-
+                # Pick action in a greedy way
+                Q = sess.run([output],{input_tensor:np.array(s_t, ndmin=4)})
+                action = np.argmax(Q)
 
                 observation, reward, done, info = env.step(action)
                 score += reward
