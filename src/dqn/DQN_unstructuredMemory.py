@@ -190,6 +190,8 @@ def train():
                 observation, reward, done, info = env.step(action)
                 greyObservation = rgb2gray(observation)
                 downObservation = downSample(greyObservation)
+                if i > 3:
+                    frame_stack.pop(0)
                 frame_stack.append(downObservation)
                 i += 1
 
@@ -207,6 +209,7 @@ def train():
                 # STORE TRANSITION
 
                 observation, reward, done, info = env.step(action)
+                score += reward
 
                 greyObservation = rgb2gray(observation)
                 downObservation = downSample(greyObservation)
