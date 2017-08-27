@@ -12,7 +12,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 
 MEMORY_LENGTH = 4
 ACTIONS = 4
-LEARNING_RATE_SGD = 0.0002
+LEARNING_RATE_SGD = 0.0001
 LEARNING_RATE_RMSPROP = .0002
 FINAL_EXPLORATION_FRAME = 2000000
 TRAINING_STEPS = 20000000
@@ -29,7 +29,7 @@ initial_step = 0
 NO_OP_MAX = 5
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0002,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_60000uint8,decaySteps_2000000,bias_0.1,weights_He,fast,fixedReduceSum,fixedSTPlus1"
+RUN_STRING = "lr_0.0001,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_60000uint8,decaySteps_2000000,bias_0.1,weights_He,fast,fixedReduceSum,fixedSTPlus1"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -179,7 +179,7 @@ def train():
         summary_writer = tf.summary.FileWriter(LOG_DIRECTORY + RUN_STRING,
                               sess.graph)
 
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(max_to_keep=10,keep_checkpoint_every_n_hours=2.0)
         checkpoint = tf.train.get_checkpoint_state(SAVE_PATH + "/" + RUN_STRING)
         if checkpoint and checkpoint.model_checkpoint_path:
             saver.restore(sess, checkpoint.model_checkpoint_path)
