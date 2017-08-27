@@ -21,15 +21,15 @@ RMSPROP_MOMENTUM = 0
 RMSPROP_DECAY = 0.99
 RMSPROP_EPSILON = 1e-6
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 200000
-RANDOM_STEPS_REPLAY_MEMORY_INIT =  200000
+REPLAY_MEMORY_SIZE = 120000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 120000
 SUMMARY_STEPS = 100
 SAVE_PERIOD = 500
 initial_step = 0
 NO_OP_MAX = 5
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0001,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_200000uint8,decaySteps_1000000,bias_0.1,weights_He,fast,unstructuredMemory,fixedReduceSum,fixedSTPlus1"
+RUN_STRING = "lr_0.0001,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_120000uint8,decaySteps_1000000,bias_0.1,weights_He,fast,unstructuredMemory,fixedReduceSum,fixedSTPlus1"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -74,8 +74,8 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
             greyObservation = rgb2gray(observation)
             downObservation = downSample(greyObservation)
 
-
-            frame_stack.append(downObservation)
+            if not done:
+                frame_stack.append(downObservation)
             memory.store_transition(
                 (
                 np.array(frame_stack,dtype=type),
@@ -211,7 +211,8 @@ def train():
                 greyObservation = rgb2gray(observation)
                 downObservation = downSample(greyObservation)
 
-                frame_stack.append(downObservation)
+                if not done:
+                    frame_stack.append(downObservation)
 
                 memory.store_transition(
                     (
@@ -267,7 +268,6 @@ def train():
                 else:
                     s_t_framesTerminal = np.array(s_t_framesTerminal, ndmin=4)
                     s_t_framesNonTerminal = np.array(s_t_framesNonTerminal, ndmin=4)
-
                     frames = np.concatenate((s_t_framesTerminal,s_t_framesNonTerminal))
                     actions = np.concatenate((actionsTerminal,actionsNonTerminal))
                     y = np.concatenate((yTerminal,yNonTerminal))
