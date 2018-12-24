@@ -13,23 +13,24 @@ tf.logging.set_verbosity(tf.logging.INFO)
 MEMORY_LENGTH = 4
 ACTIONS = 4
 LEARNING_RATE_SGD = 0.0001
-LEARNING_RATE_RMSPROP = .0001
-FINAL_EXPLORATION_FRAME = 1000000
+LEARNING_RATE_RMSPROP = .0002
+FINAL_EXPLORATION_FRAME = 2000000
 TRAINING_STEPS = 20000000
 DISCOUNT_RATE = 0.95
 RMSPROP_MOMENTUM = 0
 RMSPROP_DECAY = 0.99
 RMSPROP_EPSILON = 1e-6
 MINIBATCH_SIZE = 32
-REPLAY_MEMORY_SIZE = 120000
-RANDOM_STEPS_REPLAY_MEMORY_INIT = 120000
+REPLAY_MEMORY_SIZE = 50000
+RANDOM_STEPS_REPLAY_MEMORY_INIT = 5000
+TARGET_NETWORK_UPDATE_FREQUENCY = 10000
 SUMMARY_STEPS = 100
 SAVE_PERIOD = 500
 initial_step = 0
 NO_OP_MAX = 5
 SAVE_PATH = "saved_networks"
 LOG_DIRECTORY = "tmp/logs/"
-RUN_STRING = "lr_0.0001,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_120000uint8,decaySteps_1000000,bias_0.1,weights_He,fast,unstructuredMemory,fixedReduceSum,fixedSTPlus1"
+RUN_STRING = "DQN_target,lr_0.0001,decay_0.99,momentum_0,discountRate_0.95,replayMemorySize_60000uint8,decaySteps_2000000,bias_0.1,weights_He,fast,fixedReduceSum,fixedSTPlus1"
 ENVIRONMENT = 'Breakout-v0'
 NO_OP_CODE = 0
 TF_RANDOM_SEED = 7
@@ -68,24 +69,38 @@ def randomSteps(steps=RANDOM_STEPS_REPLAY_MEMORY_INIT,initial_no_ops=4):
             i+=1
 
         else:
+            s_t = stack(frame_stack)
             action = env.action_space.sample()
             observation, reward, done, info = env.step(action)
 
             greyObservation = rgb2gray(observation)
             downObservation = downSample(greyObservation)
 
-            if not done:
-                frame_stack.append(downObservation)
-            memory.store_transition(
-                (
-                np.array(frame_stack,dtype=type),
-                action,
-                reward,
-                done
-            )
-            )
-
             frame_stack.pop(0)
+            frame_stack.append(downObservation)
+            s_t_plus1 = stack(frame_stack)
+
+            if done:
+                memory.store_transition(
+                    (
+                    s_t.astype(type),
+                    action,
+                    reward,
+                    None,
+                    True
+                )
+                )
+
+            else:
+                memory.store_transition(
+                    (
+                        s_t.astype(type),
+                        action,
+                        reward,
+                        s_t_plus1.astype(type),
+                        False
+                    )
+                )
 
         if done:
             env.reset()
@@ -109,50 +124,51 @@ input_tensor = tf.placeholder(tf.float32,(None,84,84,4),name="input")
 actions_tensor = tf.placeholder(tf.int32, [None], name="actions")
 y_tensor = tf.placeholder(tf.float32, [None], name="r")
 
-def model():
-    #He initializer
-    weights_initializer = tf.contrib.layers.variance_scaling_initializer()
+def model(scope="scope"):
+    with tf.variable_scope(scope):
+        #He initializer
+        weights_initializer = tf.contrib.layers.variance_scaling_initializer()
 
-    #Xavier Glorot initializer
-    #weights_initializer = tf.contrib.layers.xavier_initializer()
-
-
-    #NIPS 2013 SPRAUGR parameters
-    #weights_initializer = tf.random_normal_initializer(stddev=0.00001)
-    biases_initializer = tf.constant_initializer(0.1)
-
-    #Placeholders could be here
-    conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
-    conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
-    conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
-    conv_3_flat = tf.contrib.layers.flatten(conv_3)
-    relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
-    output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
-
-    actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
-    apply_action_mask = tf.multiply(output,actions_one_hot)
-    Q_of_selected_action = tf.reduce_sum(apply_action_mask,axis=1)
+        #Xavier Glorot initializer
+        #weights_initializer = tf.contrib.layers.xavier_initializer()
 
 
-    delta = tf.subtract(Q_of_selected_action, y_tensor)
+        #NIPS 2013 SPRAUGR parameters
+        #weights_initializer = tf.random_normal_initializer(stddev=0.00001)
+        biases_initializer = tf.constant_initializer(0.1)
 
-    # Huber loss with delta=1
-    # loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+        #Placeholders could be here
+        conv_1 = tf.contrib.layers.conv2d(input_tensor,num_outputs=32,kernel_size=[8,8],stride=[4,4],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
+        conv_2 = tf.contrib.layers.conv2d(conv_1,num_outputs=64,kernel_size=[4,4],stride=[2,2],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
+        conv_3 = tf.contrib.layers.conv2d(conv_2, num_outputs=64, kernel_size=[3,3],stride=[1,1],padding='VALID',weights_initializer=weights_initializer,biases_initializer=biases_initializer,activation_fn=tf.nn.relu)
+        conv_3_flat = tf.contrib.layers.flatten(conv_3)
+        relu_1 = tf.contrib.layers.relu(conv_3_flat, num_outputs=512,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
+        output = tf.contrib.layers.fully_connected(relu_1,activation_fn=None,num_outputs=ACTIONS,weights_initializer=weights_initializer,biases_initializer=biases_initializer)
 
-    # MSE
-    loss = tf.square(delta)
+        actions_one_hot = tf.one_hot(actions_tensor, ACTIONS, name="actions_one_hot")
+        apply_action_mask = tf.multiply(output,actions_one_hot)
+        Q_of_selected_action = tf.reduce_sum(apply_action_mask,axis=1)
 
-    cost = tf.reduce_mean(loss)
-    #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
 
-    #Summary tensors
-    cost_s = tf.summary.scalar("cost",cost)
-    avg_Q = tf.summary.scalar("avg_Q",tf.reduce_mean(output))
-    merged = tf.summary.merge_all()
+        delta = tf.subtract(Q_of_selected_action, y_tensor)
 
-    avg_Score_l20_plhldr = tf.placeholder(tf.float32,None,name="avg_scores")
-    avg_Score_l20 = tf.summary.scalar("avg_Score_l20",avg_Score_l20_plhldr)
+        # Huber loss with delta=1
+        # loss = tf.where(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+
+        # MSE
+        loss = tf.square(delta)
+
+        cost = tf.reduce_mean(loss)
+        #optimizer = tf.train.GradientDescentOptimizer(learning_rate=LEARNING_RATE_SGD).minimize(cost)
+        optimizer = tf.train.RMSPropOptimizer(learning_rate=LEARNING_RATE_RMSPROP,momentum=RMSPROP_MOMENTUM,epsilon=RMSPROP_EPSILON,decay=RMSPROP_DECAY).minimize(cost)
+
+        #Summary tensors
+        cost_s = tf.summary.scalar("cost",cost)
+        avg_Q = tf.summary.scalar("avg_Q",tf.reduce_mean(output))
+        merged = tf.summary.merge_all()
+
+        avg_Score_l20_plhldr = tf.placeholder(tf.float32,None,name="avg_scores")
+        avg_Score_l20 = tf.summary.scalar("avg_Score_l20",avg_Score_l20_plhldr)
 
 
     return output,optimizer,merged,avg_Score_l20_plhldr,avg_Score_l20
@@ -160,7 +176,9 @@ def model():
 def train():
     with tf.Session() as sess:
         tf.set_random_seed(TF_RANDOM_SEED)
-        output, optimizer, merged,avg_Score_l20_plhldr,avg_Score_l20 = model()
+        output, optimizer, merged,avg_Score_l20_plhldr,avg_Score_l20 = model("train")
+
+        target,_,_,_,_ = model("target")
 
         summary_writer = tf.summary.FileWriter(LOG_DIRECTORY + RUN_STRING,
                               sess.graph)
@@ -197,12 +215,13 @@ def train():
 
             else:
                 # CHOOSING ACTION
+                s_t = stack(frame_stack)
                 if np.random.rand() < getEpsilon(step):
                     # We make random action with probability epsilon
                     action = env.action_space.sample()
                 else:
                     # Pick action in a greedy way
-                    Q = sess.run([output],{input_tensor:np.array(np.stack(frame_stack,axis=2), ndmin=4)})
+                    Q = sess.run([output],{input_tensor:np.array(s_t, ndmin=4)})
                     action = np.argmax(Q)
 
 
@@ -211,22 +230,38 @@ def train():
                 observation, reward, done, info = env.step(action)
                 score += reward
 
+                #Process received frame
                 greyObservation = rgb2gray(observation)
                 downObservation = downSample(greyObservation)
 
-                if not done:
-                    frame_stack.append(downObservation)
-
-                memory.store_transition(
-                    (
-                        np.array(frame_stack, dtype=type),
-                        action,
-                        reward,
-                        done
-                    )
-                )
-
+                #Remove oldest frame
                 frame_stack.pop(0)
+                frame_stack.append(downObservation)
+
+                #Obtain state at t+1
+                s_t_plus1 = stack(frame_stack)
+
+                if done:
+                    memory.store_transition(
+                        (
+                            s_t.astype(type),
+                            action,
+                            reward,
+                            None,
+                            True
+                        )
+                    )
+
+                else:
+                    memory.store_transition(
+                        (
+                            s_t.astype(type),
+                            action,
+                            reward,
+                            s_t_plus1.astype(type),
+                            False
+                        )
+                    )
 
                 # OBTAIN MINIBATCH
                 actionsTerminal = []
@@ -241,18 +276,18 @@ def train():
                 for batch_i in range(0, MINIBATCH_SIZE):
                     t = memory.sample_transition()
                     if t[-1]:
-                        s_t_framesTerminal.append(np.stack(t[0],2))
+                        s_t_framesTerminal.append(t[0])
                         actionsTerminal.append(t[1])
                         yTerminal.append(t[2])
                     else:
-                        s_t_framesNonTerminal.append(np.stack(t[0][:-1],2))
+                        s_t_framesNonTerminal.append(t[0])
                         actionsNonTerminal.append(t[1])
                         yNonTerminal.append(t[2])
-                        s_t_plus1_framesNonTerminal.append(np.stack(t[0][1:],2))
+                        s_t_plus1_framesNonTerminal.append(t[3])
 
                 if len(s_t_plus1_framesNonTerminal) > 0:
                     V = []
-                    out = sess.run([output], {input_tensor: np.array(s_t_plus1_framesNonTerminal, ndmin=4)})[0]
+                    out = sess.run([target], {input_tensor: np.array(s_t_plus1_framesNonTerminal, ndmin=4)})[0]
                     for out_index in range(0,len(out)):
                         V.append(DISCOUNT_RATE*np.max(out[out_index]))
                     yNonTerminal = np.sum((np.array(yNonTerminal),V), axis=0)
@@ -271,6 +306,7 @@ def train():
                 else:
                     s_t_framesTerminal = np.array(s_t_framesTerminal, ndmin=4)
                     s_t_framesNonTerminal = np.array(s_t_framesNonTerminal, ndmin=4)
+
                     frames = np.concatenate((s_t_framesTerminal,s_t_framesNonTerminal))
                     actions = np.concatenate((actionsTerminal,actionsNonTerminal))
                     y = np.concatenate((yTerminal,yNonTerminal))
@@ -283,7 +319,20 @@ def train():
                 else:
                     sess.run([optimizer],{input_tensor:frames,actions_tensor:actions,y_tensor:y})
 
-
+                if step % TARGET_NETWORK_UPDATE_FREQUENCY == 0:
+                        print("Updating target network")
+                        tvars = tf.trainable_variables()
+                        train_graph_vars = [var for var in tvars if var.name.startswith("train")]
+                        target_graph_vars = [var for var in tvars if var.name.startswith("target")]
+                        
+                        #Please fix this, this is horrible
+                        for var_tr in train_graph_vars:
+                            for var_tgt in target_graph_vars:
+                                if var_tr.name[5:] == var_tgt.name[6:]:
+                                    #a = var_tr.eval(sess) - var_tgt.eval(sess)
+                                    var_tgt.load(var_tr.eval(sess),sess)
+                                    #b = var_tr.eval(sess) - var_tgt.eval(sess)
+                                    #print (a == b)
                 if done:
                     frame_stack = []
                     game += 1
@@ -312,3 +361,14 @@ def sampleFrames():
 randomSteps()
 #sampleFrames()
 train()
+
+
+
+
+
+
+
+
+
+
+
